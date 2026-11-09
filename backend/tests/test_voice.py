@@ -416,3 +416,28 @@ def test_null_quantity_defaults_to_one_but_zero_is_rejected():
     assert _parse_tool_call("add_to_cart", '{"sku": "GRO-004"}') == {"sku": "GRO-004", "quantity": 1}
     assert _parse_tool_call("add_to_cart", '{"sku": "GRO-004", "quantity": 0}') is None
     assert _parse_tool_call("add_to_cart", '{"sku": "GRO-004", "quantity": -2}') is None
+
+
+def test_present_product_arguments_are_accepted():
+    """Regression: the reference parser had no case for present_product, so
+    every product card was rejected as malformed and the turn hit the
+    iteration limit (found live on a Tamil voice turn)."""
+    from app.agent.harness import _parse_tool_call
+
+    assert _parse_tool_call("present_product", '{"sku": "DAI-001", "within_budget": true, "note": "Within budget"}') == {
+        "sku": "DAI-001", "within_budget": True, "note": "Within budget"}
+    assert _parse_tool_call("present_product", '{"note": "x"}') is None
+
+
+def test_every_tool_schema_has_a_parser_case():
+    """No tool the model is offered may be unparseable."""
+    import json as _json
+
+    from app.agent.harness import _parse_tool_call
+    from app.agent.tools import TOOL_SCHEMAS
+
+    samples = {"sku": "GRO-004", "query": "salt", "quantity": 1, "within_budget": True, "note": "n", "question": "q?"}
+    for schema in TOOL_SCHEMAS:
+        fn = schema["function"]
+        args = {k: samples[k] for k in fn["parameters"].get("properties", {}) if k in samples}
+        assert _parse_tool_call(fn["name"], _json.dumps(args)) is not None, fn["name"]

@@ -179,6 +179,10 @@ def act_modes(api: Api) -> None:
     step("Mode B: the owner switches on autopay (₹500 limit, wallet only)")
     api.call("POST", f"/api/agents/{cid}/autopay", {"enabled": True, "limit_paise": 50_000})
     res = api.call("POST", "/api/agent/chat", {"session_id": sid, "message": "pay for the cart now"}, headers=agent)
+    if not res.get("payment") and res["status"] == "completed":
+        # A live model sometimes asks "shall I proceed?" first — answer it.
+        print(f"  agent asked: {res['reply'][:120]}")
+        res = api.call("POST", "/api/agent/chat", {"session_id": sid, "message": "Yes. Pay for it now."}, headers=agent)
     pay = res.get("payment") or {}
     print(f"  {res['reply']}")
     print(f"  order status {pay.get('status')} · authorised by {pay.get('authorized_by')}")

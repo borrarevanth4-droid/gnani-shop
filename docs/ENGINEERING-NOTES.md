@@ -69,6 +69,13 @@ per model call. **Fix:** the LLM gateway now waits for the provider's own
 falls back to the smaller model. A paid tier or `LLM_PROVIDER=nvidia` removes the
 wait.
 
+### 11. Product cards could never be shown (inherited bug)
+The agent's `present_product` tool had no case in the argument parser, so every
+call was rejected as "malformed" and the model retried until the 8-step limit.
+Found live on a Tamil voice turn in Docker ("one litre of milk"). **Fix:** a parser
+case, plus a test that every tool schema the model is offered has one
+(`test_every_tool_schema_has_a_parser_case`).
+
 ## Decisions
 
 - **No card gateway.** Demo wallet + Cash on Delivery behind a provider slot.

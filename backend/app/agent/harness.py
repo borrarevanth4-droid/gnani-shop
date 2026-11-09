@@ -849,6 +849,19 @@ def _parse_tool_call(tool_name: str, arguments_raw: str) -> dict | None:
             return {"sku": sku.strip(), "quantity": quantity}
         if tool_name in ("view_cart", "initiate_payment", "decline_upsell"):
             return {}
+        if tool_name == "present_product":
+            # Missing from the original parser, so every product card the
+            # model tried to show was rejected as "malformed" and the turn
+            # looped until the iteration limit (found live, in Tamil).
+            sku = parsed.get("sku")
+            if not isinstance(sku, str) or not sku.strip():
+                return None
+            within = parsed.get("within_budget")
+            return {
+                "sku": sku.strip(),
+                "within_budget": True if within is None else bool(within),
+                "note": str(parsed.get("note") or "")[:200],
+            }
         if tool_name == "report_content_gap":
             sku = parsed.get("sku")
             question = parsed.get("question")

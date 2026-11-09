@@ -106,7 +106,7 @@ cd frontend && npm install && npm run dev
 
 **Tests** — `cd backend && ../venv/Scripts/python -m pytest -q`
 
-**358 passed** — including 39 voice tests (Gnani mocked), 18 payment / Mode A-B tests and
+**360 passed** — including 41 voice tests (Gnani mocked), 18 payment / Mode A-B tests and
 13 multi-language search tests.
 
 **Safety eval** — `python eval/run.py --stub` (deterministic: pins the rulebook)
