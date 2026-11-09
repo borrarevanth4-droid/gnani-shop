@@ -1,0 +1,28 @@
+# Secrets — never committed
+.env
+.env.local
+!.env.example
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local databases
+backend/*.db
+backend/*.db-journal
+*.db
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+
+# Logs, editors, OS
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

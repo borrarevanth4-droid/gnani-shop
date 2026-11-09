@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Gnani Shop design tokens.
+
+   Voice-first: the one strong colour on the page is the voice
+   colour (warm saffron), used for the mic, the live waveform and
+   anything Gnani is doing right now. Everything else is calm:
+   deep indigo for primary actions and active state, cool neutrals,
+   near-black text.
+
+   Ten Indian scripts must look right side by side, so the sans
+   stack falls back to Nirmala UI / Noto Sans, which cover
+   Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada
+   and Malayalam. Numbers use Geist Mono with tabular figures so
+   every rupee amount lines up.
+   ============================================================ */
+
+:root {
+  --color-ink: #16142a;
+  --color-ink-soft: #565370;
+  --color-ink-faint: #8c89a3;
+
+  --color-paper: #f6f5fb;
+  --color-surface: #ffffff;
+
+  --color-line: #e6e4f0;
+  --color-line-strong: #d0cde0;
+
+  /* Indigo: primary actions, links, active nav. */
+  --color-accent: #4b3fd8;
+  --color-accent-hover: #3b30b8;
+  --color-accent-soft: #eeecff;
+
+  /* Saffron: the voice. Mic, waveform, "Gnani is listening/speaking". */
+  --color-voice: #f26b1d;
+  --color-voice-deep: #c94f0c;
+  --color-voice-soft: #fff1e7;
+
+  --color-success: #1f6b45;
+  --color-success-soft: #e7f5ed;
+  --color-danger: #a8321d;
+  --color-danger-soft: #fcebe7;
+  --color-warning: #8a5310;
+  --color-warning-soft: #fbf1df;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-elevated: 0 8px 24px -8px rgb(22 20 42 / 0.16), 0 1px 2px rgb(22 20 42 / 0.06);
+  --shadow-voice: 0 10px 30px -8px rgb(242 107 29 / 0.45);
+}
+
+@theme inline {
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-ink-faint: var(--color-ink-faint);
+  --color-paper: var(--color-paper);
+  --color-surface: var(--color-surface);
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-voice: var(--color-voice);
+  --color-voice-deep: var(--color-voice-deep);
+  --color-voice-soft: var(--color-voice-soft);
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-warning: var(--color-warning);
+  --color-warning-soft: var(--color-warning-soft);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --shadow-elevated: var(--shadow-elevated);
+  --shadow-voice: var(--shadow-voice);
+
+  --font-sans: var(--font-geist-sans), "Nirmala UI", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil",
+    "Noto Sans Telugu", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-feature-settings: "cv11", "ss01";
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+}
+
+/* --- Voice motion ---------------------------------------------------- */
+
+@keyframes voice-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(242 107 29 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgb(242 107 29 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(242 107 29 / 0);
+  }
+}
+
+.voice-pulse {
+  animation: voice-pulse 1.6s ease-out infinite;
+}
+
+@keyframes voice-dots {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.voice-dot {
+  animation: voice-dots 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-pulse,
+  .voice-dot {
+    animation: none;
+  }
+}
+
+/* The hero band behind the voice assistant. */
+.gnani-hero {
+  background:
+    radial-gradient(900px 300px at 15% -10%, rgb(75 63 216 / 0.14), transparent 60%),
+    radial-gradient(700px 260px at 95% 0%, rgb(242 107 29 / 0.12), transparent 60%),
+    var(--color-surface);
+}

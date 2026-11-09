@@ -1,0 +1,68 @@
+# Gnani Shop — one command to run everything:  docker compose up --build
+#
+# Copy .env.example to .env and add GNANI_API_KEY and GROQ_API_KEY (or
+# NVIDIA_API_KEY). No keys are baked into these images.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      # Optional: every setting has a working default, so the stack still
+      # comes up without a .env — voice and the agent just won't answer.
+      - path: .env
+        required: false
+    environment:
+      # Inside the container the SQLite file lives on the mounted volume.
+      DATABASE_URL: sqlite:////app/appdata/gnani_shop.db
+      # The browser reaches the frontend on the host, so CORS and every
+      # post-login redirect must name the host origin.
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+    ports:
+      - "8842:8842"
+    volumes:
+      - backend_db:/app/appdata
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8842/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the client bundle: the origin the browser calls.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8842}
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional Postgres:  docker compose --profile postgres up --build
+  # (then point DATABASE_URL at it).
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gnani
+      POSTGRES_PASSWORD: gnani
+      POSTGRES_DB: gnani_shop
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gnani -d gnani_shop"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  backend_db:
+  postgres_data:

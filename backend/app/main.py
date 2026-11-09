@@ -1,0 +1,76 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
+from app.auth import credentials_router, demo_login_router, oauth_router, role_router
+from app.core.config import settings
+from app.core.errors import CORSSafeServerErrorMiddleware
+from app.core.logging import RequestLoggingMiddleware, configure_logging
+from app.database import ensure_schema
+from app.routers import (
+    agent,
+    audit,
+    campaigns,
+    cart,
+    catalog,
+    checkout,
+    dashboard,
+    health,
+    merchant,
+    merchant_voice,
+    orders,
+    payments,
+    products,
+    voice,
+)
+from app.testing.chaos import ChaosHeaderMiddleware
+from app.voice import realtime as voice_realtime
+
+configure_logging()
+# Additive column migrations for databases created before a column existed.
+# Idempotent and cheap; see app/database.py.
+ensure_schema()
+
+app = FastAPI(title=settings.app_name)
+
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(ChaosHeaderMiddleware)
+# Required by authlib's Starlette OAuth client to hold state/nonce across
+# the Google redirect round-trip — unrelated to this backend's own JWTs
+# (app/auth/security.py), which are stateless and never touch this session.
+app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret_key)
+# MUST stay directly below CORSMiddleware. Starlette treats the last-registered
+# middleware as the outermost, so registering this one first puts it *inside*
+# CORS: it converts an unhandled exception into a response while there is still
+# a CORS layer above to attach Access-Control-Allow-Origin to it. Registered
+# the other way round, 500s reach the browser without CORS headers and every
+# server error is reported as "could not reach the API". See app/core/errors.py
+# and tests/test_error_cors.py.
+app.add_middleware(CORSSafeServerErrorMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_url],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(health.router)
+app.include_router(products.router)
+app.include_router(cart.router)
+app.include_router(agent.router)
+app.include_router(audit.router)
+app.include_router(payments.router)
+app.include_router(catalog.router)
+app.include_router(campaigns.router)
+app.include_router(oauth_router.router)
+app.include_router(credentials_router.router)
+app.include_router(role_router.router)
+app.include_router(demo_login_router.router)
+app.include_router(dashboard.router)
+app.include_router(merchant.router)
+app.include_router(checkout.router)
+app.include_router(orders.router)
+app.include_router(voice.router)
+app.include_router(merchant_voice.router)
+app.include_router(voice_realtime.router)

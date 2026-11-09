@@ -1,0 +1,107 @@
+from dataclasses import dataclass
+from enum import Enum
+
+
+class Decision(str, Enum):
+    ALLOW = "ALLOW"
+    DENY = "DENY"
+    REQUIRE_CONFIRMATION = "REQUIRE_CONFIRMATION"
+
+
+@dataclass(frozen=True)
+class CatalogProductSnapshot:
+    """What the policy engine is allowed to know about a product.
+
+    Deliberately not the SQLAlchemy model — rules must stay importable and
+    testable with zero DB/ORM dependency.
+    """
+
+    sku: str
+    price_paise: int
+    stock: int
+    # True when this product's own catalog text contains instruction-like
+    # content (app/agent/injection_detection.py). Resolved by the caller and
+    # passed in as a plain bool so rules stay importable with no DB and no
+    # dependency on the scanner. Defaults False so every existing construction
+    # site — and every test — keeps meaning "clean".
+    injection_flagged: bool = False
+
+
+@dataclass(frozen=True)
+class CartLineSnapshot:
+    """One resolved cart line, for whole-cart actions like payment."""
+
+    product: CatalogProductSnapshot
+    quantity: int
+
+
+@dataclass(frozen=True)
+class ProposedCartState:
+    """The state a proposed tool call would produce, if executed.
+
+    This is what rules evaluate — never chat text, never the model's own
+    claims about price or stock. `product` is resolved from the real catalog
+    by the caller (the harness) before evaluation; if it's None, the sku the
+    agent referenced does not exist.
+
+    `cart_line_items` and `existing_order_status` are only populated for
+    whole-cart actions (currently just `initiate_payment`) — add_to_cart and
+    friends leave them None.
+    """
+
+    session_id: str
+    user_id: str
+    tool_name: str
+    budget_paise: int | None
+    current_cart_total_paise: int
+    sku: str | None = None
+    quantity: int | None = None
+    product: CatalogProductSnapshot | None = None
+    cart_line_items: tuple[CartLineSnapshot, ...] | None = None
+    existing_order_status: str | None = None
+
+    # Only populated for tool_name == "propose_upsell" (an internal, harness-
+    # synthesized action — never something the model proposes directly).
+    # Session-derived from the audit log by the caller; see app/upsell/state.py.
+    upsell_proposed_count: int | None = None
+    upsell_declined_skus: frozenset[str] | None = None
+    upsell_original_cart_total_paise: int | None = None
+
+    # Only populated when the acting principal is an agent (never
+    # for a human buyer chatting directly) — see app/policy/rules.py's
+    # RevokedCredentialRule / AgentScopeRule / AgentSpendLimitRule and
+    # docs/ARCHITECTURE.md. Resolved fresh by the harness on every turn
+    # from the live AgentCredential row, never cached across turns, so a
+    # mid-session revocation or a limit crossed by an earlier turn in the
+    # same conversation is always caught by the very next tool call.
+    acting_agent_credential_id: str | None = None
+    agent_credential_status: str | None = None  # "ACTIVE" | "REVOKED"
+    agent_scopes: frozenset[str] | None = None
+    agent_spend_limit_paise: int | None = None
+    agent_spent_paise: int | None = None
+    # Mode B (optional agent autopay). Off unless the owner switched it on
+    # for this specific agent — see AgentAutopayRule.
+    agent_autopay_enabled: bool | None = None
+    agent_autopay_limit_paise: int | None = None
+    agent_autopay_spent_paise: int | None = None
+    # Sum of spent_paise across ALL of the owner's agents — what
+    # AccountSpendLimitRule checks so several agents can't add up to more
+    # exposure than the owner allowed in total.
+    account_agent_spent_paise: int | None = None
+
+    @property
+    def line_total_paise(self) -> int | None:
+        if self.product is None or self.quantity is None:
+            return None
+        return self.product.price_paise * self.quantity
+
+    @property
+    def proposed_cart_total_paise(self) -> int:
+        return self.current_cart_total_paise + (self.line_total_paise or 0)
+
+
+@dataclass(frozen=True)
+class RuleResult:
+    decision: Decision
+    rule_name: str
+    reason: str
