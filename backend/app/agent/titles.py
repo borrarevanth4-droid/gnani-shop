@@ -59,7 +59,7 @@ def generate_title(user_message: str) -> str:
     fallback = fallback_title(user_message)
 
     try:
-        result = gateway.call(
+        result = gateway.call_low_priority(
             [{"role": "user", "content": _PROMPT.format(message=user_message[:500])}],
             [],
         )

@@ -73,7 +73,7 @@ def _extract(user_message: str) -> tuple[bool, str | None, dict]:
     # handled gracefully (returns "no intent detected", never raises).
     for attempt in range(2):
         try:
-            result = gateway.call(messages, [])
+            result = gateway.call_low_priority(messages, [])
         except GatewayError as e:
             logger.warning("demand signal extraction failed", extra={"error": str(e), "attempt": attempt + 1})
             return False, None, {}
@@ -156,3 +156,27 @@ def maybe_capture(db: Session, session_id: str, user_message: str, turn_started_
     except Exception as e:  # never break the chat turn over telemetry
         db.rollback()
         logger.error("failed to capture demand signal", extra={"session_id": session_id, "error": str(e)})
+
+
+BACKGROUND_CAPTURE_ENABLED = True
+
+
+def schedule_capture(db: Session, session_id: str, user_message: str, turn_started_at: datetime) -> None:
+    """Runs demand extraction after the reply, on its own thread and DB
+    session, so the buyer never waits for it (it costs one LLM call). With
+    background capture disabled (the test suite) it runs inline instead."""
+    if not BACKGROUND_CAPTURE_ENABLED:
+        maybe_capture(db, session_id, user_message, turn_started_at)
+        return
+    import threading
+
+    def _run() -> None:
+        from app.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            maybe_capture(db, session_id, user_message, turn_started_at)
+        finally:
+            db.close()
+
+    threading.Thread(target=_run, daemon=True).start()

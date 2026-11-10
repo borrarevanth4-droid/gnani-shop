@@ -89,6 +89,12 @@ def provider_config() -> dict[str, str]:
         "fallback": settings.llm_fallback or (
             fallback["primary"] if fallback["name"] != primary["name"] else primary["fallback"]
         ),
+        "last_resort_provider": settings.llm_last_resort_provider or "",
+        "last_resort": (
+            settings.llm_last_resort_model or _provider(settings.llm_last_resort_provider)["primary"]
+            if settings.llm_last_resort_provider
+            else ""
+        ),
     }
 
 
@@ -223,6 +229,14 @@ class LLMGateway:
         self._primary = make_model(primary_model_id, timeout_seconds=timeout_seconds)
         self._fallback = make_model(fallback_model_id, timeout_seconds=timeout_seconds,
                                     provider=provider_config()["fallback_provider"])
+        # Optional third model on its own quota (see Settings.llm_last_resort_provider).
+        _cfg_lr = provider_config()
+        self._last_resort = (
+            make_model(_cfg_lr["last_resort"], timeout_seconds=timeout_seconds, provider=_cfg_lr["last_resort_provider"])
+            if _cfg_lr["last_resort"]
+            else None
+        )
+        self._last_resort_breaker = CircuitBreaker(circuit_breaker_failure_threshold, circuit_breaker_cooldown_seconds)
         self._primary_breaker = CircuitBreaker(circuit_breaker_failure_threshold, circuit_breaker_cooldown_seconds)
         self._fallback_breaker = CircuitBreaker(circuit_breaker_failure_threshold, circuit_breaker_cooldown_seconds)
 
@@ -248,25 +262,57 @@ class LLMGateway:
 
         if self._fallback_breaker.is_open():
             logger.error(
-                "fallback model circuit breaker also open, failing fast",
+                "fallback model circuit breaker also open",
                 extra={"fallback_model": self._fallback_id, "consecutive_failures": self._fallback_breaker.consecutive_failures},
             )
-            raise GatewayError(
-                f"Both models are circuit-broken after repeated failures — failing fast without "
-                f"attempting a call. Will retry automatically after the cooldown window."
-            )
+            if self._last_resort is None:
+                raise GatewayError(
+                    f"Both models are circuit-broken after repeated failures — failing fast without "
+                    f"attempting a call. Will retry automatically after the cooldown window."
+                )
+        else:
+            try:
+                result = self._call_with_retries(self._fallback, agno_messages, tools, fallback_used=True,
+                                                 hand_off=self._last_resort is not None)
+                self._fallback_breaker.record_success()
+                return result
+            except GatewayError:
+                self._fallback_breaker.record_failure()
+                if self._last_resort is None:
+                    raise
 
+        # Last resort: a different provider's model, on its own quota.
+        if self._last_resort_breaker.is_open():
+            raise GatewayError("All configured models are unavailable right now. Please try again shortly.")
         try:
-            result = self._call_with_retries(self._fallback, agno_messages, tools, fallback_used=True)
-            self._fallback_breaker.record_success()
+            result = self._call_with_retries(self._last_resort, agno_messages, tools, fallback_used=True)
+            self._last_resort_breaker.record_success()
             return result
         except GatewayError:
-            self._fallback_breaker.record_failure()
+            self._last_resort_breaker.record_failure()
             raise
 
+    def call_low_priority(self, messages: list[dict], tools: list[dict]) -> GatewayResult:
+        """For background jobs (conversation titles, demand extraction): use
+        the last-resort model's separate quota first, so they never eat into
+        the quota the live conversation needs. Falls back to the normal chain."""
+        if self._last_resort is not None and not self._last_resort_breaker.is_open():
+            try:
+                result = self._call_with_retries(self._last_resort, _to_agno_messages(messages), tools,
+                                                 fallback_used=True)
+                self._last_resort_breaker.record_success()
+                return result
+            except GatewayError:
+                self._last_resort_breaker.record_failure()
+        return self.call(messages, tools)
+
     def _call_with_retries(
-        self, model: OpenAILike, messages: list[Message], tools: list[dict], *, fallback_used: bool
+        self, model: OpenAILike, messages: list[Message], tools: list[dict], *, fallback_used: bool,
+        hand_off: bool | None = None,
     ) -> GatewayResult:
+        # Whether a long rate-limit wait should hand the turn to the next model
+        # instead of sleeping. Default: the primary hands off, the last model waits.
+        hand_off = (not fallback_used) if hand_off is None else hand_off
         last_error: Exception | None = None
         max_attempts = self._max_retries + 1
 
@@ -314,7 +360,7 @@ class LLMGateway:
                 if not retryable or attempt >= max_attempts:
                     raise GatewayError(str(e)) from e
                 wait = max(self._backoff_base * (2 ** (attempt - 1)), _retry_after_seconds(e))
-                if e.status_code == 429 and wait > 3.0 and not fallback_used:
+                if e.status_code == 429 and wait > 3.0 and hand_off:
                     # Rate-limited for a while: hand the turn to the fallback
                     # (possibly another provider) now rather than make the
                     # buyer wait for this provider's quota to refill.

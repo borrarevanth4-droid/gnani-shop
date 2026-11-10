@@ -290,9 +290,12 @@ def test_voice_turn_runs_the_real_agent_and_remembers_the_language(client, sessi
         assert sess.language == "te-IN" and sess.channel == "voice"
         types = [e.event_type for e in AuditService().get_trail(db, "voice-s1")]
         assert "voice_transcribed" in types and "voice_gate_decision" in types
-        assert "policy_decision" in types and "audio_tags_stripped" in types
+        assert "policy_decision" in types
     finally:
         db.close()
+    # The confirmation is the fixed Telugu phrase built from what actually ran,
+    # not the model's own (possibly garbled, tag-laden) Telugu.
+    assert "కార్ట్‌లో వేశాను" in body["reply"] and "Aashirvaad" in body["reply"]
 
 
 def test_saying_yes_cannot_approve_or_pay(client, session_factory):
@@ -460,3 +463,28 @@ def test_voice_turn_returns_the_harness_steps(client, session_factory):
     steps = res.json()["steps"]
     kinds = [s["type"] for s in steps]
     assert "tool_call_proposed" in kinds and "policy_decision" in kinds and "tool_executed" in kinds
+
+
+@pytest.mark.parametrize("message,sku_left", [
+    ("ఉప్పు తీసేయండి", "DAI-001"),
+    ("दूध हटा दो", "GRO-004"),
+    ("ಹಾಲು ತೆಗೆದುಹಾಕಿ", "GRO-004"),
+    ("ਲੂਣ ਹਟਾ ਦਿਓ", "DAI-001"),
+    ("remove the salt", "DAI-001"),
+])
+def test_remove_in_any_language_takes_the_fast_path_without_the_model(db_session, message, sku_left):
+    """Removing a single matching cart line is decided by code — through the
+    policy engine and audit log — never by the model's reading of the sentence."""
+    from app.agent import harness
+    from app.schemas.cart import CartItemCreate
+    from app.services import cart_service
+
+    for sku, name, tags in (("DAI-001", "Amul Taaza Toned Milk 1L", ["milk"]), ("GRO-004", "Tata Salt Iodised 1kg", ["salt"])):
+        product_repo.upsert(db_session, {"sku": sku, "name": name, "brand": "X", "category": "c", "price_paise": 1000,
+                                         "unit": "1", "stock": 10, "description": "d", "tags": tags, "cost_paise": 500})
+        db_session.commit()
+        cart_service.add_item(db_session, "u-rm", CartItemCreate(sku=sku, quantity=1))
+    with patch("app.agent.harness.gateway.call", side_effect=AssertionError("model must not be called")):
+        result = harness.handle_chat(db_session, "rm-s", "u-rm", message, None, "r", language="te-IN", channel="voice")
+    assert [i["sku"] for i in result.cart["items"]] == [sku_left]
+    assert any(s["type"] == "policy_decision" and s["tool"] == "remove_from_cart" for s in result.steps)

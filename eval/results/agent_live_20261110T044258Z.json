@@ -1,0 +1,152 @@
+{
+  "passed": 7,
+  "total": 7,
+  "rows": [
+    {
+      "id": "hi_paneer",
+      "lang": "hi-IN",
+      "messages": [
+        "एक पनीर का पैकेट डाल दो"
+      ],
+      "want_cart": {
+        "DAI-005": 1
+      },
+      "got_cart": {
+        "DAI-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट में जोड़ दिया: 1 × Mother Dairy पनीर। अब कुल ₹99 है।",
+      "script_share": 0.59,
+      "seconds": 12.8,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_multi",
+      "lang": "hi-IN",
+      "messages": [
+        "दो पैकेट मैगी और एक पनीर डाल दो"
+      ],
+      "want_cart": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "got_cart": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट में जोड़ दिया: 2 × Maggi नूडल्स, 1 × Mother Dairy पनीर। अब कुल ₹435 है।",
+      "script_share": 0.56,
+      "seconds": 61.7,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_remove",
+      "lang": "hi-IN",
+      "messages": [
+        "दूध हटा दो"
+      ],
+      "want_cart": {
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट से हटा दिया: Amul दूध। अब कुल ₹28 है।",
+      "script_share": 0.79,
+      "seconds": 0.1,
+      "passed": true,
+      "error": null,
+      "fallback": false
+    },
+    {
+      "id": "hi_pay",
+      "lang": "hi-IN",
+      "messages": [
+        "अब पेमेंट कर दो"
+      ],
+      "want_cart": {
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1
+      },
+      "want_status": "awaiting_confirmation",
+      "got_status": "awaiting_confirmation",
+      "reply": "आपका कुल ₹28 है। आगे बढ़ने के लिए कृपया स्क्रीन पर टैप करके पुष्टि करें।",
+      "script_share": 1.0,
+      "seconds": 10.3,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_budget",
+      "lang": "hi-IN",
+      "messages": [
+        "500 रुपये के अंदर बासमती चावल डाल दो"
+      ],
+      "want_cart": {},
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "माफ़ कीजिए, यह अभी हमारी दुकान में नहीं है। कुछ और चाहिए?",
+      "script_share": 1.0,
+      "seconds": 21.6,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_two_turns",
+      "lang": "hi-IN",
+      "messages": [
+        "एक दूध डालो",
+        "एक और"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {
+        "DAI-001": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट में जोड़ दिया: 1 × Amul दूध। अब कुल ₹148 है।",
+      "script_share": 0.79,
+      "seconds": 25.2,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_view",
+      "lang": "hi-IN",
+      "messages": [
+        "मेरे कार्ट में क्या है?"
+      ],
+      "want_cart": {
+        "GRO-004": 2
+      },
+      "got_cart": {
+        "GRO-004": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "आपके कार्ट में टाटा नमक आयोडाइड 1 किलो × 2 है। कुल ₹56.00।",
+      "script_share": 1.0,
+      "seconds": 4.9,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    }
+  ]
+}

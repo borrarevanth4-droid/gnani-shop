@@ -106,7 +106,7 @@ cd frontend && npm install && npm run dev
 
 **Tests** — `cd backend && ../venv/Scripts/python -m pytest -q`
 
-**360 passed** — including 41 voice tests (Gnani mocked), 18 payment / Mode A-B tests and
+**367 passed** — including 46 voice tests (Gnani mocked), 18 payment / Mode A-B tests and
 13 multi-language search tests.
 
 **Safety eval** — `python eval/run.py --stub` (deterministic: pins the rulebook)
@@ -117,6 +117,14 @@ cd frontend && npm install && npm run dev
 
 The live-model eval (`python eval/run.py`) works too, but on Groq's free tier
 (8,000 tokens/minute) 41 scenarios take a long time; run it on a paid tier or NVIDIA.
+
+**Live agent test** — `python eval/agent_live.py` (real LLM + harness + rulebook, checks the exact cart,
+status and reply script): **37/37** commands across all 10 languages + Tinglish / Hinglish / Tanglish —
+add, multi-item, quantities, remove, "one more", view cart, pay, budget, unknown products, two-turn chats.
+(Baseline before tuning: 10/27 — see docs/ENGINEERING-NOTES.md §15.)
+
+**Live voice test** — `python eval/voice_live.py` (Gnani Timbre speaks → Gnani Prisma hears → agent):
+**11/11**, every language detected correctly and every cart exact.
 
 **Live Gnani, measured in this build** (Telugu & Hindi, push-to-talk, from India):
 Prisma v3.0 model processing ≈ 0.17–0.25 s, round trip ≈ 1.2–1.5 s; Timbre streaming

@@ -1,0 +1,186 @@
+{
+  "passed": 11,
+  "total": 11,
+  "rows": [
+    {
+      "id": "te",
+      "lang": "te-IN",
+      "said": "నాకు ఒక లీటర్ పాలు మరియు రెండు ప్యాకెట్ల ఉప్పు కావాలి",
+      "heard": "నాకు ఒక లీటర్ పాలు మరియు రెండు ప్యాకెట్ల ఉప్పు కావాలి.",
+      "detected": "te-IN",
+      "cart": {
+        "DAI-001": 1,
+        "GRO-004": 2
+      },
+      "want": {
+        "DAI-001": 1,
+        "GRO-004": 2
+      },
+      "reply": "కార్ట్‌లో వేశాను: 1 × Amul పాలు, 2 × Tata ఉప్పు. ఇప్పుడు మొత్తం ₹130.",
+      "seconds": 37.8,
+      "passed": true
+    },
+    {
+      "id": "tinglish",
+      "lang": "te-IN",
+      "said": "naaku oka Amul butter add cheyyi",
+      "heard": "నాకు Oka Amul butter add చేయి.",
+      "detected": "te-IN",
+      "cart": {
+        "DAI-002": 1
+      },
+      "want": {
+        "DAI-002": 1
+      },
+      "reply": "కార్ట్‌లో వేశాను: 1 × Amul వెన్న. ఇప్పుడు మొత్తం ₹295.",
+      "seconds": 8.5,
+      "passed": true
+    },
+    {
+      "id": "hi",
+      "lang": "hi-IN",
+      "said": "दो पैकेट मैगी और एक पनीर डाल दो",
+      "heard": "2 packet Maggi और 1 पनीर डाल दो।",
+      "detected": "hi-IN",
+      "cart": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "want": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "reply": "कार्ट में जोड़ दिया: 2 × Maggi नूडल्स, 1 × Mother Dairy पनीर। अब कुल ₹435 है।",
+      "seconds": 6.7,
+      "passed": true
+    },
+    {
+      "id": "ta",
+      "lang": "ta-IN",
+      "said": "ஒரு லிட்டர் பால் வேண்டும்",
+      "heard": "ஒரு 1 litre பால் வேண்டும்.",
+      "detected": "ta-IN",
+      "cart": {
+        "DAI-001": 1
+      },
+      "want": {
+        "DAI-001": 1
+      },
+      "reply": "கார்ட்டில் சேர்த்துவிட்டேன்: 1 × Amul பால். இப்போது மொத்தம் ₹74.",
+      "seconds": 13.0,
+      "passed": true
+    },
+    {
+      "id": "kn",
+      "lang": "kn-IN",
+      "said": "ಎರಡು ಪ್ಯಾಕೆಟ್ ಉಪ್ಪು ಸೇರಿಸಿ",
+      "heard": "2 packet, ಉಪ್ಪು ಸೇರಿಸಿ.",
+      "detected": "kn-IN",
+      "cart": {
+        "GRO-004": 2
+      },
+      "want": {
+        "GRO-004": 2
+      },
+      "reply": "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿದ್ದೇನೆ: 2 × Tata ಉಪ್ಪು. ಈಗ ಒಟ್ಟು ₹56.",
+      "seconds": 27.5,
+      "passed": true
+    },
+    {
+      "id": "ml",
+      "lang": "ml-IN",
+      "said": "ഒരു പാക്കറ്റ് ചായ വേണം",
+      "heard": "ഒരു പാക്കറ്റ് ചായ വേണം.",
+      "detected": "ml-IN",
+      "cart": {
+        "GRO-006": 1
+      },
+      "want": {
+        "GRO-006": 1
+      },
+      "reply": "കാർട്ടിൽ ചേർത്തു: 1 × Tata Tea ചായ. ഇപ്പോൾ ആകെ ₹270.",
+      "seconds": 11.6,
+      "passed": true
+    },
+    {
+      "id": "mr",
+      "lang": "mr-IN",
+      "said": "एक किलो तूर डाळ द्या",
+      "heard": "एक किलो तूर डाळ द्या।",
+      "detected": "mr-IN",
+      "cart": {
+        "GRO-005": 1
+      },
+      "want": {
+        "GRO-005": 1
+      },
+      "reply": "कार्टमध्ये टाकले: 1 × Tata Sampann डाळ. आता एकूण ₹189.",
+      "seconds": 6.9,
+      "passed": true
+    },
+    {
+      "id": "bn",
+      "lang": "bn-IN",
+      "said": "এক লিটার দুধ দিন",
+      "heard": "1 liter দুধ দিন।",
+      "detected": "bn-IN",
+      "cart": {
+        "DAI-001": 1
+      },
+      "want": {
+        "DAI-001": 1
+      },
+      "reply": "কার্টে যোগ করেছি: 1 × Amul দুধ। এখন মোট ₹74।",
+      "seconds": 16.3,
+      "passed": true
+    },
+    {
+      "id": "gu",
+      "lang": "gu-IN",
+      "said": "એક દહીં ઉમેરો",
+      "heard": "એક દહીં ઉમેરો.",
+      "detected": "gu-IN",
+      "cart": {
+        "DAI-004": 1
+      },
+      "want": {
+        "DAI-004": 1
+      },
+      "reply": "કાર્ટમાં ઉમેર્યું: 1 × Nestle દહીં. હવે કુલ ₹55.",
+      "seconds": 28.7,
+      "passed": true
+    },
+    {
+      "id": "pa",
+      "lang": "pa-IN",
+      "said": "ਦੋ ਲੀਟਰ ਦੁੱਧ ਪਾ ਦਿਓ",
+      "heard": "2 liter ਦੁੱਧ ਪਾ ਦਿਓ।",
+      "detected": "pa-IN",
+      "cart": {
+        "DAI-001": 2
+      },
+      "want": {
+        "DAI-001": 2
+      },
+      "reply": "ਕਾਰਟ ਵਿੱਚ ਪਾ ਦਿੱਤਾ: 2 × Amul ਦੁੱਧ। ਹੁਣ ਕੁੱਲ ₹148।",
+      "seconds": 43.3,
+      "passed": true
+    },
+    {
+      "id": "en",
+      "lang": "en-IN",
+      "said": "add three Maggi packets",
+      "heard": "Add 3 Maggi packets.",
+      "detected": "en-IN",
+      "cart": {
+        "GRO-008": 3
+      },
+      "want": {
+        "GRO-008": 3
+      },
+      "reply": "Added 3 packs of Maggi 2-Minute Masala Noodles. Total comes to ₹504.00.",
+      "seconds": 15.5,
+      "passed": true
+    }
+  ]
+}

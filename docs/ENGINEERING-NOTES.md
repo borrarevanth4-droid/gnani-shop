@@ -99,6 +99,23 @@ can live on a different provider (`LLM_FALLBACK_PROVIDER=nvidia`), and a 429
 with a long wait now hands the turn to the fallback immediately instead of
 sleeping.
 
+### 15. Agent accuracy across languages — measured, then fixed (10/27 → 35/37 → see README)
+`eval/agent_live.py` runs real commands in all ten languages + Tinglish /
+Hinglish / Tanglish through the real LLM, harness and rulebook, and checks the
+EXACT cart, the status, and the reply's script. Baseline: 10/27. What failed
+and what fixed it:
+
+| Failure (live) | Fix |
+|---|---|
+| "add milk" showed a product card instead of adding | voice turns don't get `present_product`; prompt says add |
+| garbled Indic replies ("ಗೆಗirestore") | cart confirmations are fixed phrases in each language built from what actually ran |
+| 26/27 turns ran on the weakest model (free-tier quota) | chain Groq 120b → Groq 20b (own quota) → NVIDIA; background jobs use the last-resort model; shorter prompt |
+| stopped after the first of several items | numbered rules + "before you reply, check every item was added" |
+| "remove salt" sometimes *added* something | removals in 10 languages resolved by code through the policy engine |
+| "one more", "remove", "what's in my cart" lost context | the current cart and the last-added item are given to the model every step |
+| looped searching for things we don't sell | repeat-call guard + fixed "we don't stock that" phrase |
+| "पनीर" searched as "cheese" | search results always include products for words the buyer literally said |
+
 ## Decisions
 
 - **No card gateway.** Demo wallet + Cash on Delivery behind a provider slot.

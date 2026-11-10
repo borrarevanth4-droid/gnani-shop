@@ -1,0 +1,579 @@
+{
+  "passed": 22,
+  "total": 27,
+  "rows": [
+    {
+      "id": "te_milk",
+      "lang": "te-IN",
+      "messages": [
+        "నాకు ఒక లీటర్ పాలు కావాలి"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "కార్ట్‌లో వేశాను: 1 × Amul పాలు. ఇప్పుడు మొత్తం ₹74. ఒక లీటర్ పాలు జోడించాం. ₹74.00 మొత్తంతో ఉన్నారు.",
+      "script_share": 0.89,
+      "seconds": 8.6,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_salt_two",
+      "lang": "te-IN",
+      "messages": [
+        "రెండు ప్యాకెట్ల ఉప్పు వేయండి"
+      ],
+      "want_cart": {
+        "GRO-004": 2
+      },
+      "got_cart": {
+        "GRO-004": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "కార్ట్‌లో వేశాను: 2 × Tata ఉప్పు. ఇప్పుడు మొత్తం ₹56. ఉప్పు రెండు ప్యాకెట్లు జోడించాం. ₹56.00 మొత్తం.",
+      "script_share": 0.89,
+      "seconds": 4.8,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_paneer",
+      "lang": "hi-IN",
+      "messages": [
+        "एक पनीर का पैकेट डाल दो"
+      ],
+      "want_cart": {
+        "DAI-005": 1
+      },
+      "got_cart": {
+        "DAI-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट में जोड़ दिया: 1 × Mother Dairy पनीर। अब कुल ₹99 है। Mother Dairy Paneer 200g ₹99 गाड़ी में डाल दिया।",
+      "script_share": 0.44,
+      "seconds": 83.3,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ta_tea",
+      "lang": "ta-IN",
+      "messages": [
+        "ஒரு பாக்கெட் டாடா டீ வேண்டும்"
+      ],
+      "want_cart": {
+        "GRO-006": 1
+      },
+      "got_cart": {
+        "GRO-006": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "கார்ட்டில் சேர்த்துவிட்டேன்: 1 × Tata Tea டீ. இப்போது மொத்தம் ₹270.",
+      "script_share": 0.76,
+      "seconds": 9.1,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "kn_biscuits",
+      "lang": "kn-IN",
+      "messages": [
+        "ಎರಡು ಪಾರ್ಲೆ-ಜಿ ಬಿಸ್ಕತ್ ಸೇರಿಸಿ"
+      ],
+      "want_cart": {
+        "BIS-001": 2
+      },
+      "got_cart": {
+        "BIS-001": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "ಕಾರ್ಟ್‌ಗೆ ಸೇರಿಸಿದ್ದೇನೆ: 2 × Parle ಬಿಸ್ಕತ್. ಈಗ ಒಟ್ಟು ₹240.",
+      "script_share": 0.79,
+      "seconds": 5.1,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ml_cola",
+      "lang": "ml-IN",
+      "messages": [
+        "ഒരു കോക്ക കോള വേണം"
+      ],
+      "want_cart": {
+        "DRI-001": 1
+      },
+      "got_cart": {
+        "DRI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "കാർട്ടിൽ ചേർത്തു: 1 × Coca-Cola കൂൾ ഡ്രിങ്ക്. ഇപ്പോൾ ആകെ ₹95. Coca-Cola ചerasിൽ ₹95",
+      "script_share": 0.53,
+      "seconds": 11.7,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "mr_dal",
+      "lang": "mr-IN",
+      "messages": [
+        "एक किलो तूर डाळ द्या"
+      ],
+      "want_cart": {
+        "GRO-005": 1
+      },
+      "got_cart": {
+        "GRO-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्टमध्ये टाकले: 1 × Tata Sampann डाळ. आता एकूण ₹189.",
+      "script_share": 0.59,
+      "seconds": 16.9,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "bn_tea",
+      "lang": "bn-IN",
+      "messages": [
+        "এক প্যাকেট চা দিন"
+      ],
+      "want_cart": {
+        "GRO-006": 1
+      },
+      "got_cart": {
+        "GRO-006": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "কার্টে যোগ করেছি: 1 × Tata Tea চা। এখন মোট ₹270।",
+      "script_share": 0.67,
+      "seconds": 12.5,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "gu_ghee",
+      "lang": "gu-IN",
+      "messages": [
+        "એક લીટર ઘી ઉમેરો"
+      ],
+      "want_cart": {
+        "DAI-006": 1
+      },
+      "got_cart": {
+        "DAI-006": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "કાર્ટમાં ઉમેર્યું: 1 × Amul ઘી. હવે કુલ ₹680.",
+      "script_share": 0.76,
+      "seconds": 4.1,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "pa_milk_two",
+      "lang": "pa-IN",
+      "messages": [
+        "ਦੋ ਲੀਟਰ ਦੁੱਧ ਪਾ ਦਿਓ"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {
+        "DAI-001": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "ਕਾਰਟ ਵਿੱਚ ਪਾ ਦਿੱਤਾ: 2 × Amul ਦੁੱਧ। ਹੁਣ ਕੁੱਲ ₹148। ਦੋ ਲੀਟਰ ਦੁੱਧ ਕਾਰਟ ਵਿੱਚ ਸ਼ਾਮਲ ਕੀਤੀ ਗਈ।\ttotal ₹148.",
+      "script_share": 0.78,
+      "seconds": 14.6,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "en_curd",
+      "lang": "en-IN",
+      "messages": [
+        "Add one curd please"
+      ],
+      "want_cart": {
+        "DAI-004": 1
+      },
+      "got_cart": {
+        "DAI-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Added Nestle a+ Dahi Curd 400g (₹55) to your cart.",
+      "script_share": 1.0,
+      "seconds": 7.7,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_multi",
+      "lang": "te-IN",
+      "messages": [
+        "నాకు రెండు కిలోల ఆట్టా మరియు ఒక లీటర్ పాలు కావాలి"
+      ],
+      "want_cart": {
+        "GRO-001": 1,
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "GRO-001": 1,
+        "DAI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "కార్ట్‌లో వేశాను: 1 × Aashirvaad గోధుమ పిండి, 1 × Amul పాలు. ఇప్పుడు మొత్తం ₹349.",
+      "script_share": 0.6,
+      "seconds": 35.7,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_multi",
+      "lang": "hi-IN",
+      "messages": [
+        "दो पैकेट मैगी और एक पनीर डाल दो"
+      ],
+      "want_cart": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "got_cart": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट में जोड़ दिया: 2 × Maggi नूडल्स, 1 × Mother Dairy पनीर। अब कुल ₹435 है।",
+      "script_share": 0.56,
+      "seconds": 17.8,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ta_multi",
+      "lang": "ta-IN",
+      "messages": [
+        "ஒரு லிட்டர் பால் மற்றும் ஒரு பாக்கெட் உப்பு வேண்டும்"
+      ],
+      "want_cart": {
+        "DAI-001": 1,
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "DAI-001": 1,
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "கார்ட்டில் சேர்த்துவிட்டேன்: 1 × Amul பால், 1 × Tata உப்பு. இப்போது மொத்தம் ₹102. அமில் டாaza டھ_INCLUDED 1L ₹74, தatha சால்ட் 1kg ₹28. மொத்தம் ₹102.",
+      "script_share": 0.59,
+      "seconds": 88.0,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "en_multi",
+      "lang": "en-IN",
+      "messages": [
+        "add 3 Maggi packets and a Coca-Cola"
+      ],
+      "want_cart": {
+        "GRO-008": 3,
+        "DRI-001": 1
+      },
+      "got_cart": {
+        "GRO-008": 3,
+        "DRI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "You’ve added 3 packs of Maggi 2‑Minute Masala Noodles and a 2.25‑L Coca‑Cola bottle. Total so far: ₹599.",
+      "script_share": 1.0,
+      "seconds": 7.3,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "tinglish",
+      "lang": "te-IN",
+      "messages": [
+        "naaku oka Amul butter and two Maggi packets add cheyyi"
+      ],
+      "want_cart": {
+        "DAI-002": 1,
+        "GRO-008": 2
+      },
+      "got_cart": {
+        "DAI-002": 1,
+        "GRO-008": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "కార్ట్‌లో వేశాను: 1 × Amul వెన్న, 2 × Maggi నూడుల్స్. ఇప్పుడు మొత్తం ₹631.",
+      "script_share": 0.7,
+      "seconds": 32.4,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hinglish",
+      "lang": "hi-IN",
+      "messages": [
+        "ek tata salt aur ek dahi add karo"
+      ],
+      "want_cart": {
+        "GRO-004": 1,
+        "DAI-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1,
+        "DAI-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट में जोड़ दिया: 1 × Tata नमक, 1 × Nestle दही। अब कुल ₹83 है। Tata salt aur Nestle dahi cart mein add ho gaye hain. ₹83 lag gaye.",
+      "script_share": 0.23,
+      "seconds": 17.5,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "tanglish",
+      "lang": "ta-IN",
+      "messages": [
+        "oru packet Maggi add pannunga"
+      ],
+      "want_cart": {
+        "GRO-008": 1
+      },
+      "got_cart": {
+        "GRO-008": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "கார்ட்டில் சேர்த்துவிட்டேன்: 1 × Maggi நூடுல்ஸ். இப்போது மொத்தம் ₹168.",
+      "script_share": 0.83,
+      "seconds": 8.3,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_remove",
+      "lang": "te-IN",
+      "messages": [
+        "ఉప్పు తీసేయండి"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1,
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "క్షమించండి, మీ కార్టులో ఉప్పు లేదు.",
+      "script_share": 1.0,
+      "seconds": 0.7,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_remove",
+      "lang": "hi-IN",
+      "messages": [
+        "दूध हटा दो"
+      ],
+      "want_cart": {
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "कार्ट से हटा दिया: Amul दूध। अब कुल ₹28 है।",
+      "script_share": 0.79,
+      "seconds": 2.5,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "en_more",
+      "lang": "en-IN",
+      "messages": [
+        "add one more milk"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "I’m not sure which milk you had added last. Could you tell me the brand or size?",
+      "script_share": 1.0,
+      "seconds": 0.8,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_pay",
+      "lang": "te-IN",
+      "messages": [
+        "ఇప్పుడు చెల్లించండి"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": "awaiting_confirmation",
+      "got_status": "awaiting_confirmation",
+      "reply": "మీ మొత్తం ₹74. నిర్ధారించడానికి దయచేసి స్క్రీన్‌పై ట్యాప్ చేయండి.",
+      "script_share": 1.0,
+      "seconds": 4.2,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_pay",
+      "lang": "hi-IN",
+      "messages": [
+        "अब पेमेंट कर दो"
+      ],
+      "want_cart": {
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1
+      },
+      "want_status": "awaiting_confirmation",
+      "got_status": "awaiting_confirmation",
+      "reply": "आपका कुल ₹28 है। आगे बढ़ने के लिए कृपया स्क्रीन पर टैप करके पुष्टि करें।",
+      "script_share": 1.0,
+      "seconds": 4.1,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_unknown",
+      "lang": "te-IN",
+      "messages": [
+        "నాకు మామిడి పండ్లు కావాలి"
+      ],
+      "want_cart": {},
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "మామిడి పండ్లుcatalog లో కగిగి లేము. sorry, మాmadan store లో ఇప్పటికేavailability లేదు.",
+      "script_share": 0.38,
+      "seconds": 14.1,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_budget",
+      "lang": "hi-IN",
+      "messages": [
+        "500 रुपये के अंदर बासमती चावल डाल दो"
+      ],
+      "want_cart": {},
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "माफ़ करें, ₹500 के अंदर बासमती चावल उपलब्ध नहीं है.",
+      "script_share": 1.0,
+      "seconds": 3.9,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ta_view",
+      "lang": "ta-IN",
+      "messages": [
+        "என் கார்ட்டில் என்ன இருக்கு?"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "உங்கள் கார்ட்டில் அம்யு தானா tone milk 1L இருக்கு. மொத்தம் ₹74.00.",
+      "script_share": 0.71,
+      "seconds": 9.8,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_two_turns",
+      "lang": "te-IN",
+      "messages": [
+        "ఒక లీటర్ పాలు",
+        "ఇంకొకటి కూడా వేయండి"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {
+        "DAI-001": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "కార్ట్‌లో వేశాను: 1 × Amul పాలు. ఇప్పుడు మొత్తం ₹148. Amul Taaza Toned Milk 1L another jar ajouta, మొత్తం ₹148.",
+      "script_share": 0.33,
+      "seconds": 13.4,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    }
+  ]
+}

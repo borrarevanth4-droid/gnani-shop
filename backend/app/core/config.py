@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Optional: run the fallback model on a DIFFERENT provider ("groq" or
     # "nvidia"). Empty = same provider as LLM_PROVIDER.
     llm_fallback_provider: str = ""
+    # Optional third model, tried only when both of the above fail or are
+    # rate-limited (e.g. "nvidia" → Nemotron 3.5 Lightning). Empty = none.
+    llm_last_resort_provider: str = ""
+    llm_last_resort_model: str = ""
     llm_timeout_seconds: float = 30.0
     llm_max_retries: int = 2
     llm_retry_backoff_seconds: float = 1.0

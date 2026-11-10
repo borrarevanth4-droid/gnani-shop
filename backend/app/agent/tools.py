@@ -58,6 +58,24 @@ def search_products(
         page_size=20,
     )
     relaxed: str | None = None
+    buyer_said = _buyer_terms(db, session_id)
+    if buyer_said:
+        # Ground the model's query in the buyer's own words: if they said a
+        # word our 10-language vocabulary knows (पनीर → paneer) but the model
+        # searched something else ("cheese"), the products for what they
+        # actually said are added to the results — first — so the model can't
+        # quietly substitute a different product.
+        have = {p.sku for p in result.items}
+        extra = []
+        for term in buyer_said:
+            if not any(term in [t.lower() for t in p.tags] for p in result.items):
+                found = product_service.list_products(db, category=None, search=term, min_price_paise=None,
+                                                      max_price_paise=max_price_paise, page=1, page_size=5)
+                extra += [p for p in found.items if p.sku not in have and term in [t.lower() for t in p.tags]]
+                have |= {p.sku for p in found.items}
+        if extra:
+            result.items = extra + list(result.items)
+            result.total = len(result.items)
     if result.total == 0 and category:
         # The model guessed a category; a wrong guess ("milk" under
         # groceries) must not hide a product we actually stock.
@@ -69,6 +87,7 @@ def search_products(
     return {
         "total": result.total,
         **({"note": relaxed} if relaxed else {}),
+        **({"buyer_said": buyer_said} if buyer_said else {}),
         "items": [
             {
                 "sku": p.sku,
@@ -89,6 +108,20 @@ def search_products(
             for p in result.items
         ],
     }
+
+
+def _buyer_terms(db: Session, session_id: str) -> list[str]:
+    """Catalog tags named, in any of the ten languages, in the buyer's most
+    recent message (app/i18n/grocery_terms.py — a lookup, not a model)."""
+    if not session_id:
+        return []
+    from app.i18n.grocery_terms import expand_query
+    from app.repositories import agent_session_repo
+
+    for m in reversed(agent_session_repo.list_messages(db, session_id)):
+        if m.role == "user" and m.content:
+            return [t.lower() for t in expand_query(m.content)[1:]]
+    return []
 
 
 def get_product(db: Session, user_id: str, session_id: str, sku: str) -> dict:
@@ -147,7 +180,26 @@ def remove_from_cart(db: Session, user_id: str, sku: str) -> dict:
     cart = cart_repo.get_or_create_active_cart(db, user_id)
     match = next((item for item in cart.items if item.product.sku == sku), None)
     if match is None:
-        return {"error": f"'{sku}' is not in the cart."}
+        # The model sometimes passes the product word ("salt", "ఉప్పు")
+        # instead of the SKU. Resolve it against what's actually in the cart —
+        # by name, brand, tag or local name — but only when exactly one line fits.
+        from app.i18n.grocery_terms import expand_query
+
+        terms = [t.lower() for t in expand_query(sku)]
+        hits = [
+            item for item in cart.items
+            if any(
+                t in (item.product.name or "").lower()
+                or t in (item.product.brand or "").lower()
+                or t in [tag.lower() for tag in (item.product.tags or [])]
+                or t in [a.lower() for a in (item.product.aliases or {}).values()]
+                for t in terms
+            )
+        ]
+        if len(hits) == 1:
+            match = hits[0]
+    if match is None:
+        return {"error": f"'{sku}' is not in the cart. Use a SKU from the current cart."}
     updated = cart_service.delete_item(db, user_id, match.id)
     return updated.model_dump(mode="json")
 

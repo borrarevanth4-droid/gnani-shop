@@ -1,0 +1,569 @@
+{
+  "passed": 10,
+  "total": 27,
+  "rows": [
+    {
+      "id": "te_milk",
+      "lang": "te-IN",
+      "messages": [
+        "నాకు ఒక లీటర్ పాలు కావాలి"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Within your request.",
+      "script_share": 0.0,
+      "seconds": 4.6,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_salt_two",
+      "lang": "te-IN",
+      "messages": [
+        "రెండు ప్యాకెట్ల ఉప్పు వేయండి"
+      ],
+      "want_cart": {
+        "GRO-004": 2
+      },
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "ఉప్పు వేయాల packet ఏ వస్తuary? దయచేసి పేర్కొనండి.",
+      "script_share": 0.66,
+      "seconds": 6.2,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_paneer",
+      "lang": "hi-IN",
+      "messages": [
+        "एक पनीर का पैकेट डाल दो"
+      ],
+      "want_cart": {
+        "DAI-005": 1
+      },
+      "got_cart": {
+        "DAI-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Mother Dairy Paneer 200g ₹99.00 गाड़ी में जोड़ दिया गया है।",
+      "script_share": 0.36,
+      "seconds": 6.8,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ta_tea",
+      "lang": "ta-IN",
+      "messages": [
+        "ஒரு பாக்கெட் டாடா டீ வேண்டும்"
+      ],
+      "want_cart": {
+        "GRO-006": 1
+      },
+      "got_cart": {
+        "GRO-006": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "தatha Tea Premium 500g ₹270 கார்டுக்குச் சேர்க்கப்பட்டது. Thums Up 750ml ₹45Also available, want it?",
+      "script_share": 0.27,
+      "seconds": 17.4,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "kn_biscuits",
+      "lang": "kn-IN",
+      "messages": [
+        "ಎರಡು ಪಾರ್ಲೆ-ಜಿ ಬಿಸ್ಕತ್ ಸೇರಿಸಿ"
+      ],
+      "want_cart": {
+        "BIS-001": 2
+      },
+      "got_cart": {
+        "BIS-001": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "ಪಾರ್ಲೆ-ಜಿ गोल biskಿತ 1kg × 2 ಗೆಗirestore. Thums Up 750ml ₹45.00. ಸೇರಿಸೋರಿ?",
+      "script_share": 0.31,
+      "seconds": 18.4,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ml_cola",
+      "lang": "ml-IN",
+      "messages": [
+        "ഒരു കോക്ക കോള വേണം"
+      ],
+      "want_cart": {
+        "DRI-001": 1
+      },
+      "got_cart": {
+        "DRI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "കോക്ക കോള ഡൽൈറ്റിൽ 2.25L ഭ bottles ഓം രൂപം ₹95. ഇതൊക്കെ കാർച്ചിലേക്ക് ചേർത്ത്തു.",
+      "script_share": 0.79,
+      "seconds": 25.8,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "mr_dal",
+      "lang": "mr-IN",
+      "messages": [
+        "एक किलो तूर डाळ द्या"
+      ],
+      "want_cart": {
+        "GRO-005": 1
+      },
+      "got_cart": {
+        "GRO-005": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Tata Sampann Toor Dal 1kg ₹189 कार्टात जोडला गयला. Thums Up 750ml Bottle ₹45 उपलब्ध आहे का?",
+      "script_share": 0.34,
+      "seconds": 25.8,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "bn_tea",
+      "lang": "bn-IN",
+      "messages": [
+        "এক প্যাকেট চা দিন"
+      ],
+      "want_cart": {
+        "GRO-006": 1
+      },
+      "got_cart": {
+        "GRO-006": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "আপনি Tata Tea Premium 500g প্যাকেটটি যুক্ত করেছেন, মোট ₹270. আপনি কি Thums Up 750ml (₹45) যোগ করতে চান?",
+      "script_share": 0.54,
+      "seconds": 13.6,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "gu_ghee",
+      "lang": "gu-IN",
+      "messages": [
+        "એક લીટર ઘી ઉમેરો"
+      ],
+      "want_cart": {
+        "DAI-006": 1
+      },
+      "got_cart": {
+        "DAI-006": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "આમુલ ગી 1 લિટર ઉમેરવામાં આવ્યું છે. સાથે, ઓરિયો ચૉકલેટ ક્રીમ બિસ્કિટ 300 ગ્રામ, કિંમત ₹90, પણ તમે તેને પણ ઉમેરવા માંગો છો?",
+      "script_share": 1.0,
+      "seconds": 3.8,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "pa_milk_two",
+      "lang": "pa-IN",
+      "messages": [
+        "ਦੋ ਲੀਟਰ ਦੁੱਧ ਪਾ ਦਿਓ"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "1L milk, ₹74",
+      "script_share": 0.0,
+      "seconds": 47.9,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "en_curd",
+      "lang": "en-IN",
+      "messages": [
+        "Add one curd please"
+      ],
+      "want_cart": {
+        "DAI-004": 1
+      },
+      "got_cart": {
+        "DAI-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Added one Nestle a+ Dahi Curd for ₹55. Would you like anything else?",
+      "script_share": 1.0,
+      "seconds": 1.6,
+      "passed": true,
+      "error": null,
+      "fallback": false
+    },
+    {
+      "id": "te_multi",
+      "lang": "te-IN",
+      "messages": [
+        "నాకు రెండు కిలోల ఆట్టా మరియు ఒక లీటర్ పాలు కావాలి"
+      ],
+      "want_cart": {
+        "GRO-001": 1,
+        "DAI-001": 1
+      },
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "5kg pack — more than the 2kg you asked for, but the only atta currently in stock.",
+      "script_share": 0.0,
+      "seconds": 23.4,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_multi",
+      "lang": "hi-IN",
+      "messages": [
+        "दो पैकेट मैगी और एक पनीर डाल दो"
+      ],
+      "want_cart": {
+        "GRO-008": 2,
+        "DAI-005": 1
+      },
+      "got_cart": {
+        "GRO-008": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "मैगी का दो पैकेट आपके कार्ट में जोड़ दिया गया है। साथ ही, थंडे पेय के तौर पर **Thums Up 750ml** (₹45) भी सुझाव के रूप में है—क्या आप इसे भी जोड़ना चाहेंगे?",
+      "script_share": 0.86,
+      "seconds": 17.8,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ta_multi",
+      "lang": "ta-IN",
+      "messages": [
+        "ஒரு லிட்டர் பால் மற்றும் ஒரு பாக்கெட் உப்பு வேண்டும்"
+      ],
+      "want_cart": {
+        "DAI-001": 1,
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "DAI-001": 1,
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "மில் மற்றும் உப்புSuccessfully added Amul Taaza Toned Milk 1L (₹74) and Tata Salt Iodised 1kg (₹28) to your cart. Total: ₹102. Want to proceed to checkout?",
+      "script_share": 0.09,
+      "seconds": 23.2,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "en_multi",
+      "lang": "en-IN",
+      "messages": [
+        "add 3 Maggi packets and a Coca-Cola"
+      ],
+      "want_cart": {
+        "GRO-008": 3,
+        "DRI-001": 1
+      },
+      "got_cart": {
+        "GRO-008": 3,
+        "DRI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Added 3 Maggi 2-Minute Masala Noodles 12-packs (₹504) and a Coca-Cola 2.25L bottle (₹95) to your cart. Total ₹599. Would you like a Thums Up 750ml bottle for ₹45 as well?",
+      "script_share": 1.0,
+      "seconds": 80.6,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "tinglish",
+      "lang": "te-IN",
+      "messages": [
+        "naaku oka Amul butter and two Maggi packets add cheyyi"
+      ],
+      "want_cart": {
+        "DAI-002": 1,
+        "GRO-008": 2
+      },
+      "got_cart": {
+        "DAI-002": 1,
+        "GRO-008": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "అముల్ బ commands",
+      "script_share": 0.33,
+      "seconds": 48.5,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hinglish",
+      "lang": "hi-IN",
+      "messages": [
+        "ek tata salt aur ek dahi add karo"
+      ],
+      "want_cart": {
+        "GRO-004": 1,
+        "DAI-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1,
+        "DAI-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Tata Salt Iodised 1kg ₹28 aur Nestle a+ Dahi Curd 400g ₹55 add ho gaye. Total ₹83. Kya aap payment karna chahenge?",
+      "script_share": 0.0,
+      "seconds": 11.6,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "tanglish",
+      "lang": "ta-IN",
+      "messages": [
+        "oru packet Maggi add pannunga"
+      ],
+      "want_cart": {
+        "GRO-008": 1
+      },
+      "got_cart": {
+        "GRO-008": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Maggi 2‑Minute Masala Noodles 12-pack ₹168.00 added to your cart. Thums Up 750ml Bottle ₹45.00 — நீங்கள் அதற்கு விரும்புகிறீரா?",
+      "script_share": 0.21,
+      "seconds": 15.8,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_remove",
+      "lang": "te-IN",
+      "messages": [
+        "ఉప్పు తీసేయండి"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1,
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "No budget constraint specified.",
+      "script_share": 0.0,
+      "seconds": 18.2,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_remove",
+      "lang": "hi-IN",
+      "messages": [
+        "दूध हटा दो"
+      ],
+      "want_cart": {
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "दूध हटा दिया गया है। अब कार्ट में नमक बचा है।",
+      "script_share": 1.0,
+      "seconds": 4.0,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "en_more",
+      "lang": "en-IN",
+      "messages": [
+        "add one more milk"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {
+        "DAI-001": 2
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Added Amul Taaza Toned Milk 1L for ₹74.",
+      "script_share": 1.0,
+      "seconds": 11.5,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_pay",
+      "lang": "te-IN",
+      "messages": [
+        "ఇప్పుడు చెల్లించండి"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": "awaiting_confirmation",
+      "got_status": "awaiting_confirmation",
+      "reply": "మీ మొత్తం ₹74. నిర్ధారించడానికి దయచేసి స్క్రీన్‌పై ట్యాప్ చేయండి.",
+      "script_share": 1.0,
+      "seconds": 3.1,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_pay",
+      "lang": "hi-IN",
+      "messages": [
+        "अब पेमेंट कर दो"
+      ],
+      "want_cart": {
+        "GRO-004": 1
+      },
+      "got_cart": {
+        "GRO-004": 1
+      },
+      "want_status": "awaiting_confirmation",
+      "got_status": "awaiting_confirmation",
+      "reply": "आपका कुल ₹28 है। आगे बढ़ने के लिए कृपया स्क्रीन पर टैप करके पुष्टि करें।",
+      "script_share": 1.0,
+      "seconds": 1.2,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_unknown",
+      "lang": "te-IN",
+      "messages": [
+        "నాకు మామిడి పండ్లు కావాలి"
+      ],
+      "want_cart": {},
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "iteration_limit",
+      "reply": "I've hit my step limit for this request without finishing. Please try rephrasing, or ask again to continue.",
+      "script_share": 0.0,
+      "seconds": 13.0,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "hi_budget",
+      "lang": "hi-IN",
+      "messages": [
+        "500 रुपये के अंदर बासमती चावल डाल दो"
+      ],
+      "want_cart": {},
+      "got_cart": {},
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "Closest match — ₹649, over your ₹500 budget",
+      "script_share": 0.0,
+      "seconds": 26.4,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "ta_view",
+      "lang": "ta-IN",
+      "messages": [
+        "என் கார்ட்டில் என்ன இருக்கு?"
+      ],
+      "want_cart": {
+        "DAI-001": 1
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "உங்கள் கார்டில் அமில் தாசா டೋன்ட்amil 1L உள்ளது, மொத்தம் ₹74.00.",
+      "script_share": 0.83,
+      "seconds": 6.2,
+      "passed": true,
+      "error": null,
+      "fallback": true
+    },
+    {
+      "id": "te_two_turns",
+      "lang": "te-IN",
+      "messages": [
+        "ఒక లీటర్ పాలు",
+        "ఇంకొకటి కూడా వేయండి"
+      ],
+      "want_cart": {
+        "DAI-001": 2
+      },
+      "got_cart": {
+        "DAI-001": 1
+      },
+      "want_status": null,
+      "got_status": "completed",
+      "reply": "ఇంకా ఏ వస్తుంటారు?",
+      "script_share": 1.0,
+      "seconds": 13.7,
+      "passed": false,
+      "error": null,
+      "fallback": true
+    }
+  ]
+}
