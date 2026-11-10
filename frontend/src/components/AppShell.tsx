@@ -42,7 +42,7 @@ function NavLink({ item, pathname, label }: { item: NavItem; pathname: string; l
   return (
     <Link
       href={item.href}
-      className={`relative inline-flex h-12 shrink-0 items-center px-3 text-[15px] font-medium tracking-[0.4px] transition-colors ${
+      className={`relative inline-flex h-12 shrink-0 items-center whitespace-nowrap px-2.5 text-[14px] font-medium tracking-[0.3px] transition-colors xl:px-3 xl:text-[15px] ${
         active ? "text-white" : "text-on-night-faint hover:text-white"
       }`}
     >
@@ -85,12 +85,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-30 bg-night text-on-night">
         <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
             <Link href={homeHref} className="shrink-0">
               <Wordmark dark />
             </Link>
             {nav.length > 0 && (
-              <nav className="hidden items-center md:flex">
+              <nav className="hidden min-w-0 items-center overflow-x-auto [scrollbar-width:none] lg:flex">
                 {nav.map((item) => (
                   <NavLink key={item.href} item={item} pathname={pathname} label={item.key ? t(item.key) : item.label} />
                 ))}
@@ -98,8 +98,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <label className="flex h-9 items-center gap-1.5 rounded-full border border-night-line px-3 text-xs text-on-night-soft">
+          <div className="flex shrink-0 items-center gap-2">
+            <label className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-night-line px-3 text-xs text-on-night-soft">
               <Languages size={14} />
               <select
                 aria-label="Language"
@@ -117,7 +117,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {user?.type === "buyer" && balance != null && (
               <Link
                 href="/wallet"
-                className="hidden h-9 items-center gap-1.5 rounded-full bg-night-card px-3 font-mono text-xs tabular-nums text-white sm:inline-flex"
+                className="hidden h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-night-card px-3 font-mono text-xs tabular-nums text-white sm:inline-flex"
                 title="Gnani Shop Wallet — demo money"
               >
                 <Wallet size={13} /> ₹{(balance / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
@@ -125,11 +125,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             )}
             {user && (
               <>
-                <span className="hidden max-w-48 truncate text-sm text-on-night-faint lg:inline">{user.email}</span>
                 <button
                   onClick={logout}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm text-on-night-soft transition-colors hover:text-white"
-                  title={t("signOut")}
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-sm text-on-night-soft transition-colors hover:text-white"
+                  title={user.email ? `${t("signOut")} · ${user.email}` : t("signOut")}
                 >
                   <LogOut size={14} />
                   <span className="hidden sm:inline">{t("signOut")}</span>
@@ -139,7 +138,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         {nav.length > 0 && (
-          <nav className="flex overflow-x-auto border-t border-night-line px-2 md:hidden">
+          <nav className="flex overflow-x-auto border-t border-night-line px-2 lg:hidden">
             {nav.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} label={item.key ? t(item.key) : item.label} />
             ))}
