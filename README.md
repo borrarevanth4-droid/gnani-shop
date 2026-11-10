@@ -196,6 +196,8 @@ sequenceDiagram
 | A question ("how much is milk?") added potato | Speech heard "potato?"; a backup AI model then added it | Questions can never change the cart, whatever the model proposes |
 | The assistant said "removed milk" from an empty cart | A backup model invented the reply | "That's not in your cart" is now answered by code, in the buyer's language |
 | "Remove salt" sometimes *added* something | The model misread removals | Removals in 10 languages are resolved by code through the rulebook |
+| Asked "who is the president of America?", the assistant answered it | A general-purpose model answers anything; a prompt can only *ask* it not to | **ShopScopeRule** checks every AI reply in code: no shop action and no shop words → a fixed "I can only help with shopping" in the buyer's language, logged as a rulebook step. 24/24 off-topic and 24/24 shop questions classified correctly across 10 languages |
+| A second user could reach another's conversation by voice, and anyone could open the shop-owner view (which reads all chats) | Voice checked ownership too late; the role switch had no allow-list | Ownership checked before anything else; only `MERCHANT_EMAILS` can become shop owner. A test has a second user try 15 ways into the first user's data |
 | Spoken tricks ("ignore the rules" in Hindi) | The injection scanner only knew English | Phrasings in all 10 languages + Hinglish; the rulebook re-checks every action anyway |
 
 ### Reliability and setup
