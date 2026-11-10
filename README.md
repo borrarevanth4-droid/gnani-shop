@@ -31,9 +31,14 @@ English** on a screen. That leaves out a huge number of buyers:
   Apps make you do the opposite.
 - **Trust.** If an AI assistant is allowed to shop for you, people rightly worry:
   *can it spend my money by mistake, or be tricked into it?*
+- **Privacy.** What you say to a shopping assistant (by voice or text) is personal. Other
+  users must never see it.
+- **Staying on task.** A general AI model will happily answer anything ("who is the
+  president?"), often out of date or wrong. A shop assistant should do one job well.
 
 **The challenge:** let anyone shop just by speaking, in their own language, while making
-it impossible for the AI to spend money without the buyer's explicit approval.
+it impossible for the AI to spend money without the buyer's explicit approval, keeping
+each person's conversations private, and keeping the assistant on the job of shopping.
 
 ---
 
@@ -50,10 +55,14 @@ your cart, talks back, and listens again — hands-free, like talking to a shopk
 | ✋ **Nothing is paid without a tap** | A rulebook written in plain code checks every action. Voice can fill a cart but can **never** pay |
 | 🧾 **Cart history** | Every past basket with a one-tap **Buy again**, and a timeline of everything added or removed — by you or by the assistant |
 | 💳 **Demo payments** | Gnani Shop Wallet (demo money) or Cash on Delivery. No real card or bank is involved |
+| 🔐 **Sign in with Google** | Your own account, or one-click demo accounts for trying it out |
+| 🙈 **Your conversations are private** | Every chat, voice turn, cart, cart history and order belongs to one user. Other users can't see or reuse them |
+| 🎯 **An assistant that stays on topic** | **ShopScopeRule** checks every AI reply in code. Off-topic questions get a polite "I can only help with shopping here" in your language |
 
 For the shop owner: voice insights (which languages customers speak, Gnani latency),
 **Shop Voice** (clone your own voice, with consent, to speak offers), **Call Insights**
-(transcribe phone-order recordings), campaigns, and a replay of any conversation.
+(transcribe phone-order recordings), campaigns, and a replay of any conversation. Only
+accounts listed in `MERCHANT_EMAILS` can open the shop-owner view.
 
 > **The rule behind everything:** Gnani hears and speaks. The AI suggests. The rulebook
 > decides. The diary (audit log) remembers. Only a human tap moves money.
@@ -75,11 +84,12 @@ graph TD
     end
 
     subgraph BE["Backend — FastAPI (port 8842)"]
-        SEC["Security gate<br/>login (JWT) · agent keys · rate limits"]
+        SEC["Security gate<br/>Google sign-in / demo login (JWT) · agent keys · rate limits<br/>ownership check: your data only"]
         VL["Voice layer<br/>Gnani gateway · voice gate · spoken-text builder"]
         FP["Fast path (no AI)<br/>10-language order parser · remove · price · pay"]
         AG["Agent harness<br/>AI proposes tool calls"]
         LLM["LLM gateway<br/>Groq / NVIDIA · fallback · circuit breaker"]
+        SC["🎯 ShopScopeRule<br/>shop answers only"]
         RB["📕 Rulebook (plain Python)<br/>ALLOW · ASK HUMAN · DENY"]
         DOM["Shop logic<br/>cart · orders · wallet · cash on delivery · cart history"]
         AU["📓 Audit diary (append-only)"]
@@ -87,22 +97,27 @@ graph TD
 
     GN["☁️ Gnani Vachana<br/>Prisma STT · Timbre TTS · voice cloning"]
     AI["☁️ LLM provider<br/>Groq or NVIDIA NIM"]
+    GO["☁️ Google sign-in<br/>OAuth 2.0"]
     DB[("SQLite / Postgres")]
 
     U --> UI --> AUD
     UI --> PX --> SEC
+    SEC -. sign-in .-> GO
     SEC --> VL --> GN
     VL --> FP
     VL --> AG
     FP --> RB
     AG --> LLM --> AI
     AG --> RB
+    AG --> SC
     RB --> DOM --> DB
     VL -.-> AU
     RB -.-> AU
+    SC -.-> AU
     DOM -.-> AU
 
     style RB fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px
+    style SC fill:#e8f5e9,stroke:#2e7d32
     style FP fill:#e8f5e9,stroke:#2e7d32
     style AG fill:#fff3e0,stroke:#e65100
     style LLM fill:#fff3e0,stroke:#e65100
@@ -125,12 +140,14 @@ sequenceDiagram
     B->>F: "రెండు కిలోల ఉల్లిపాయలు కావాలి"
     F->>F: record 16 kHz audio, detect end of speech
     F->>V: audio clip
+    V->>V: is this conversation yours? (otherwise refused before anything else)
     V->>G: Prisma v3.0 (language hint + catalog keyterms)
     G-->>V: text + detected language (te-IN)
     V->>V: voice gate: unclear? cut off? a trick ("ignore the rules")?
     V->>X: understand the request
     X->>R: add_to_cart(onion, 2)
     R-->>X: ALLOW (or ASK HUMAN / DENY, with a reason)
+    X->>X: ShopScopeRule: was this a shop turn? (if not → "I can only help with shopping")
     X-->>V: reply in Telugu, built from what actually happened
     V-->>F: reply text
     F->>G: Timbre v3.0 stream
@@ -148,6 +165,9 @@ sequenceDiagram
 | Fast path | `backend/app/agent/fast_path.py` | Understands simple orders in all 10 languages with no AI: instant, free, exact |
 | Agent harness | `backend/app/agent/harness.py` | Runs the AI in a loop: it proposes actions, the rulebook decides, results go back |
 | Rulebook | `backend/app/policy/` | Budgets, stock, agent limits, payment approval — plain Python, no AI |
+| ShopScopeRule | `backend/app/agent/scope.py` | After every AI turn: keeps shop answers, replaces anything off-topic with a fixed sentence in the buyer's language |
+| Sign-in | `backend/app/auth/oauth_router.py` | Google OAuth through the single address (the round trip returns to the address you started on); demo logins in development |
+| Ownership checks | `harness.py`, `voice/service.py`, `voice/realtime.py`, routers | Every conversation, cart line and order is checked against the signed-in user before it is read or used |
 | Shop logic | `backend/app/orders`, `payments`, `services` | Cart, order state machine, wallet ledger, cash on delivery, cart history |
 | Audit diary | `backend/app/audit/` | Append-only record of every step; powers replay and reports |
 
@@ -160,7 +180,21 @@ sequenceDiagram
 | Backend | Python, FastAPI, SQLAlchemy, Pydantic |
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Web Audio API (AudioWorklet) |
 | Database | SQLite by default; Postgres supported |
+| Sign-in | Google OAuth 2.0 (Authlib), JWT sessions |
 | Packaging | Docker Compose (optional) |
+
+### 3.5 Who can see what
+
+| Data | The user it belongs to | Another signed-in user | The shop owner (`MERCHANT_EMAILS`) |
+|---|---|---|---|
+| Chat and voice conversations | ✅ | ❌ refused (403 / 404) | ✅ read-only, via the audit viewer |
+| Cart, cart history, "Buy again" | ✅ | ❌ | ❌ (only cart actions that happened inside a conversation, in its audit trail) |
+| Orders and wallet | ✅ | ❌ | Orders ✅ (to fulfil them), wallet ❌ |
+| Merchant view | ❌ unless listed in `MERCHANT_EMAILS` | ❌ | ✅ |
+
+The **demo accounts** are shared by everyone who clicks "Continue as Demo Buyer", so use
+Google sign-in for real privacy. Logging out clears the browser's memory of your
+conversation, so the next person on the same computer starts fresh.
 
 ---
 
@@ -207,6 +241,7 @@ sequenceDiagram
 | Replies stalled for tens of seconds | Free-tier AI rate limits | Model chain across providers (Groq → smaller model → NVIDIA); simple orders skip the AI entirely |
 | Gnani rejected requests (`error code: 1010`) | Gnani's edge blocks generic Python user-agents | The gateway sends an honest `gnani-shop/1.0` user-agent |
 | Two servers, two addresses, confusing setup | Frontend and backend ran separately | The frontend forwards `/api/*` to the backend; **one command, one address** |
+| Google sign-in would fail when started from `localhost:3000` | Google was told to return to `127.0.0.1:8842`, a different address, so the browser's sign-in cookie didn't match | The return address is the one the browser is on (passed through by the proxy, only local addresses and HTTPS tunnels accepted). Without keys, the button explains what's missing instead of showing a Google error |
 | "no such table" after updating | New tables were only created by the seed script | The app creates any missing table at startup (never touches existing data) |
 
 More detail: [docs/ENGINEERING-NOTES.md](docs/ENGINEERING-NOTES.md).
@@ -313,21 +348,27 @@ This starts **both** the backend and the frontend. Wait until you see
 
 ### Step 8 — Use it
 
-1. Open **http://127.0.0.1:3000**
-2. Click **Continue as Demo Buyer**
+1. Open **http://localhost:3000**
+2. Click **Continue as Demo Buyer**, or **Sign in with Google** once you've done the
+   [Google setup](#optional-sign-in-with-google).
 3. Tap the orange **mic**, allow microphone access, and say for example:
    - *"दो किलो प्याज़ और एक लीटर दूध चाहिए"*
    - *"రెండు కిలోల చక్కెర మరియు ఒక బ్రెడ్ కావాలి"*
    - *"add three Maggi packets and a Coca-Cola"*
 4. It replies out loud and listens again. To pay, tap **Confirm** on screen.
 5. See **Cart history** in the top menu for past baskets and **Buy again**.
+6. Try something off-topic, like *"who is the president of America?"*. It politely says it
+   only helps with shopping.
 
 | Page | Address |
 |---|---|
-| Shop (voice assistant) | http://127.0.0.1:3000 |
-| Cart history | http://127.0.0.1:3000/cart-history |
-| Voice Lab (every Gnani feature side by side) | http://127.0.0.1:3000/voice-lab |
+| Shop (voice assistant) | http://localhost:3000 |
+| Sign in | http://localhost:3000/login |
+| Cart history | http://localhost:3000/cart-history |
+| Voice Lab (every Gnani feature side by side) | http://localhost:3000/voice-lab |
 | Backend API docs | http://127.0.0.1:8842/docs |
+
+`127.0.0.1:3000` works too. For Google sign-in, use whichever address you registered.
 
 ### Troubleshooting
 
@@ -359,13 +400,15 @@ The demo accounts work without this. To let people sign in with their own Google
    ```ini
    GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
    GOOGLE_CLIENT_SECRET=xxxxxxxx
-   MERCHANT_EMAILS=you@gmail.com   # optional: these accounts get the shop-owner view
+   MERCHANT_EMAILS=you@gmail.com   # optional: only these accounts can open the shop-owner view
    ```
 5. Restart (`Ctrl + C`, then `npm run app`), open **http://localhost:3000/login** and click
    **Sign in with Google**.
 
 Open the app on the same address you registered: if you registered only `localhost`, use
-`localhost:3000`. New Google users start as buyers with a demo wallet.
+`localhost:3000`. New Google users start as buyers with a demo wallet and their own private
+conversations. Accounts listed in `MERCHANT_EMAILS` also get a **Switch to merchant view**
+button. Nobody else can switch.
 
 ### Alternative: run with Docker
 
@@ -390,6 +433,9 @@ example ngrok, with `NGROK_AUTHTOKEN` in `.env`) and open the HTTPS link on your
 |---|---|---|
 | All automated tests (Gnani and AI mocked) | `..\venv\Scripts\python -m pytest -q` | **539 passed** |
 | Order understanding in 10 languages | included above (`tests/test_fast_path_languages.py`) | **46/46** orders understood; **26/26** remove / question / pay sentences never read as "add" |
+| Staying on topic (ShopScopeRule) | included above (`tests/test_shop_scope.py`) | **24/24** off-topic questions refused, **24/24** shop questions allowed, in 10 languages |
+| Privacy between users | included above (`tests/test_user_isolation.py`) | A second user tries 15 ways into the first user's chat, voice, audit, cart, cart history and orders: all refused |
+| Google sign-in | included above (`tests/test_google_oauth.py`) | Round trip stays on the browser's address; forged addresses ignored |
 | Live voice conversations — real Gnani audio in all 10 languages | `venv\Scripts\python eval/voice_journey.py` (from the main folder) | **15/15** conversations perfect, 45/45 replies spoken completely in the right language |
 | Safety evaluation (rulebook) | `python eval/run.py --stub` (from the main folder) | 41/41 scenarios, 0 false positives / negatives (last recorded run) |
 
@@ -404,7 +450,8 @@ On macOS / Linux use `../venv/bin/python` instead of `..\venv\Scripts\python`.
 gnani-shop/
 ├── backend/                 FastAPI app
 │   ├── app/voice/           Gnani gateway, voice gate, realtime bridge, spoken replies
-│   ├── app/agent/           agent harness + 10-language fast path
+│   ├── app/agent/           agent harness, 10-language fast path, ShopScopeRule (scope.py)
+│   ├── app/auth/            Google sign-in, demo logins, role switch, agent keys
 │   ├── app/policy/          the rulebook
 │   ├── app/payments/        wallet ledger + cash on delivery
 │   ├── app/i18n/            grocery vocabulary in 10 languages
@@ -431,6 +478,7 @@ gnani-shop/
 | `JWT_SECRET_KEY` | **Yes — always set it** | Logins still work but are signed with an empty secret, so anyone could forge one |
 | `APP_ENV=development` | For demo logins | Demo accounts are disabled |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional ([setup](#optional-sign-in-with-google)) | Use the demo accounts |
+| `MERCHANT_EMAILS` | Optional | Comma-separated emails allowed to open the shop-owner view. Without it, only the demo accounts can |
 | `DATABASE_URL` | Optional | SQLite file `backend/gnani_shop.db` |
 
 ### More documentation
