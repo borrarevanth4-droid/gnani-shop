@@ -193,6 +193,7 @@ def handle_chat(
     human = principal is None or principal.type != "agent"
     fast = human and (
         _try_language_switch(db, session, user_message)
+        or _try_small_talk(db, session, user_message)
         or _try_catalog_overview(db, session, user_message)
         or _try_remove_fast_path(db, session, user_message, request_id)
         or _try_view_cart_fast_path(db, session, user_message, request_id)
@@ -270,7 +271,40 @@ def _reply_ok(text: str, lang: str | None) -> bool:
         return True
     lo, hi = _SCRIPT_RANGE.get(lang, (0, 0x10FFFF))
     native = sum(lo <= ord(c) <= hi for c in letters) / len(letters)
-    return native >= 0.45
+    if native < 0.45:
+        return False
+    # English words inside an Indian-language reply are fine only if they are
+    # shop words or product names ("cart", "Maggi") — not made-up romanised
+    # words. (Live: the backup model said "…ededaina కొ funt ఔ?" in Telugu.)
+    stray = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", text) if w.lower() not in _known_latin_words()]
+    return not stray
+
+
+_SHOP_WORDS = {
+    "cart", "add", "added", "total", "upi", "cod", "wallet", "ok", "okay", "rs", "kg", "g", "ml", "l", "pack",
+    "packet", "packets", "gnani", "shop", "online", "order", "payment", "pay", "cash", "delivery", "tap", "screen",
+    "offer", "discount", "price", "stock", "item", "items", "bottle", "pcs", "litre", "liter",
+}
+
+
+def _known_latin_words() -> set[str]:
+    global _LATIN_CACHE
+    if _LATIN_CACHE is None:
+        from pathlib import Path
+
+        words = set(_SHOP_WORDS)
+        try:
+            catalog = json.loads((Path(__file__).resolve().parents[2] / "data" / "products.json").read_text("utf-8"))
+            for p in catalog["products"]:
+                text = " ".join([p.get("name", ""), p.get("brand", ""), *p.get("tags", [])])
+                words.update(w.lower() for w in re.findall(r"[A-Za-z][A-Za-z'-]*", text))
+        except (OSError, ValueError, KeyError):
+            pass
+        _LATIN_CACHE = words
+    return _LATIN_CACHE
+
+
+_LATIN_CACHE: set[str] | None = None
 
 
 _SCRIPT_RANGE = {
@@ -354,6 +388,37 @@ def _try_language_switch(db: Session, session, message: str) -> HarnessResult | 
     result.spoken_reply = reply
     result.view_only = True
     result.language = target
+    return result
+
+
+_GREETING = re.compile(
+    r"^\W*(hi+|hello|hey|hai|namaste|namaskar\w*|vanakkam|good (morning|afternoon|evening)|नमस्ते|नमस्कार|"
+    r"నమస్కారం|నమస్తే|హలో|హాయ్|வணக்கம்|ஹலோ|ನಮಸ್ಕಾರ|ಹಲೋ|നമസ്കാരം|ഹലോ|নমস্কার|হ্যালো|નમસ્તે|ਸਤ ਸ੍ਰੀ ਅਕਾਲ|"
+    r"हैलो|हेलो)\W*$",
+    re.IGNORECASE,
+)
+_THANKS = re.compile(
+    r"^\W*(thanks?( you)?|thank u|thx|dhanyavaa?d\w*|shukriya|nandri|ధన్యవాదాలు|థాంక్స్|धन्यवाद|शुक्रिया|"
+    r"नन्दी|நன்றி|ಧನ್ಯವಾದ\w*|നന്ദി|ধন্যবাদ|આભાર|ਧੰਨਵਾਦ|थैंक्स)\W*$",
+    re.IGNORECASE,
+)
+
+
+def _try_small_talk(db: Session, session, message: str) -> HarnessResult | None:
+    """"Hello", "నమస్కారం", "thanks" — answered instantly in the buyer's
+    language; no model, so nothing can come back garbled."""
+    text = (message or "").strip()
+    key = "greet" if _GREETING.match(text) else "thanks" if _THANKS.match(text) else None
+    if key is None:
+        return None
+    lang = getattr(session, "language", None) or "en-IN"
+    reply = spoken_phrase(key, lang)
+    agent_session_repo.append_message(db, session.session_id, "assistant", content=reply)
+    db.commit()
+    result = HarnessResult(reply=reply, status="completed", pending=None, cart=_cart_dict(db, session.user_id),
+                           upsell=_upsell_dict(db, session.session_id))
+    result.spoken_reply = reply
+    result.view_only = True
     return result
 
 

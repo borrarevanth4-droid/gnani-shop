@@ -1,0 +1,38 @@
+{
+  "journeys_ok": 1,
+  "journeys": 1,
+  "rows": [
+    {
+      "journey": "tinglish",
+      "turn": 1,
+      "said": "naaku oka Amul butter and two Maggi packets add cheyyi",
+      "heard": "నాకు Oka Amul Butter and 2 Maggi packets add చేయి.",
+      "detected": "te-IN",
+      "reply": "1 వెన్న, 2 మ్యాగీ కార్ట్‌లో వేశాను. ఇప్పుడు మొత్తం ₹631.",
+      "reply_heard": "ఒకటి వెన్న, రెండు మ్యాగీ కార్డులు వేశాను ఇప్పుడు మొత్తం 631 రూపాయలు.",
+      "match": 0.77,
+      "reply_lang": "te-IN",
+      "turn_s": 1.04,
+      "first_sound_s": 0.91,
+      "to_first_sound_s": 1.95,
+      "audio_s": 5.8,
+      "flags": []
+    },
+    {
+      "journey": "tinglish",
+      "turn": 2,
+      "said": "inko butter kuda add cheyyi",
+      "heard": "ఇంకో butter కూడా add చేయి.",
+      "detected": "te-IN",
+      "reply": "1 వెన్న కార్ట్‌లో వేశాను. ఇప్పుడు మొత్తం ₹926.",
+      "reply_heard": "ఒకటి వెన్నకాటిలో వేశాను ఇప్పుడు మొత్తం 926 రూపాయలు.",
+      "match": 0.81,
+      "reply_lang": "te-IN",
+      "turn_s": 0.83,
+      "first_sound_s": 0.87,
+      "to_first_sound_s": 1.7,
+      "audio_s": 4.8,
+      "flags": []
+    }
+  ]
+}

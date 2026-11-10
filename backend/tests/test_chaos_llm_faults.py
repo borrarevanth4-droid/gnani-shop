@@ -52,7 +52,7 @@ def test_slow_llm_exhausts_retries_and_fails_gracefully(db_session):
     with _chaos_dev(), patch("app.testing.chaos.settings.chaos_fault", "SLOW_LLM"), patch(
         "app.agent.harness.gateway", fast_gateway
     ):
-        result = harness.handle_chat(db_session, "sess-chaos-slow", "user_demo", "hello", None, "req-1")
+        result = harness.handle_chat(db_session, "sess-chaos-slow", "user_demo", "any snacks on offer?", None, "req-1")
 
     assert result.status == "completed"
     assert "couldn't reach the model" in result.reply.lower()

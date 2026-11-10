@@ -200,7 +200,7 @@ def test_extraction_failure_never_breaks_the_chat_turn(db_session):
             return _raise_on_second_call(*a, **k)
 
     with patch("app.agent.harness.gateway.call", side_effect=side_effect):
-        result = harness.handle_chat(db_session, "sess-extract-fail", "user_demo", "hello", 100_000, "req-1")
+        result = harness.handle_chat(db_session, "sess-extract-fail", "user_demo", "any snacks on offer?", 100_000, "req-1")
 
     assert result.status == "completed"
     assert result.reply == "Sure, here's what I found."

@@ -577,3 +577,22 @@ def test_switch_language_by_voice(db_session, message, target):
         r = harness.handle_chat(db_session, f"ls-{target}", "u", message, None, "r", language="te-IN", channel="voice")
     assert r.language == target
     assert agent_session_repo.get_session(db_session, f"ls-{target}").language == target
+
+
+def test_garbled_romanised_words_rejected():
+    from app.agent.harness import _reply_ok
+
+    assert not _reply_ok("శుభాకాంక్షలు! తెలుగులో మాట్లాడగలను—ededaina కొ funt ఔ? చెల్లింపు చేయాలా", "te-IN")
+    assert _reply_ok("మీ cart లో 2 Maggi ఉన్నాయి. మొత్తం ₹148.", "te-IN")
+
+
+@pytest.mark.parametrize("message,key", [("Hello", "greet"), ("నమస్కారం", "greet"), ("thank you", "thanks"),
+                                         ("ధన్యవాదాలు", "thanks")])
+def test_small_talk_is_instant(db_session, message, key):
+    from app.agent import harness
+    from app.voice.spoken import phrase as spoken_phrase
+
+    with patch("app.agent.harness.gateway.call", side_effect=AssertionError("model must not be called")):
+        harness.handle_chat(db_session, f"st-{key}", "u", "తెలుగులో మాట్లాడు", None, "r0")
+        r = harness.handle_chat(db_session, f"st-{key}", "u", message, None, "r1")
+    assert r.reply == spoken_phrase(key, "te-IN")
