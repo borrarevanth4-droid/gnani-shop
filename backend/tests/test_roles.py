@@ -160,7 +160,11 @@ def test_dev_role_switch_requires_authentication(client):
     assert resp.status_code == 401
 
 
-def test_dev_role_switch_moves_a_buyer_to_the_merchant_view(client, session_factory):
+def test_dev_role_switch_moves_a_buyer_to_the_merchant_view(client, session_factory, monkeypatch):
+    # Only the shop owner's accounts (MERCHANT_EMAILS) may switch — see tests/test_user_isolation.py.
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "merchant_emails", "buyer3@example.test")
     _make_user(session_factory, user_id="buyer-3", email="buyer3@example.test", role="BUYER")
     token = _jwt_for("buyer-3", "buyer3@example.test", "BUYER")
     resp = client.post("/api/dev/switch-role", headers={"Authorization": f"Bearer {token}"}, json={"role": "MERCHANT"})

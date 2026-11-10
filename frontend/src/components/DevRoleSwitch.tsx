@@ -15,6 +15,9 @@ export default function DevRoleSwitch() {
   const [error, setError] = useState<string | null>(null);
 
   if (!user || user.type === "agent") return null;
+  // A buyer who isn't one of the shop owner's accounts can't become merchant
+  // (the merchant view can read every buyer's conversations).
+  if (user.type === "buyer" && !user.can_be_merchant) return null;
   const target: "BUYER" | "MERCHANT" = user.type === "buyer" ? "MERCHANT" : "BUYER";
 
   async function switchRole() {

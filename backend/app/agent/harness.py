@@ -900,6 +900,11 @@ def handle_confirm(
     db: Session, session_id: str, user_id: str, approve: bool, request_id: str | None
 ) -> HarnessResult:
     session = agent_session_repo.get_session(db, session_id)
+    # Ownership first — before revealing anything about the session (its
+    # state, its pending offer). Previously checked only when something was
+    # pending, so another buyer could read this session's upsell offer.
+    if session is not None and session.user_id != user_id:
+        raise SessionOwnershipError(f"Session '{session_id}' does not belong to this principal.")
     if session is None or session.status != "awaiting_confirmation" or not session.pending_tool_call:
         return HarnessResult(
             reply="There is nothing awaiting confirmation for this session.",
@@ -908,8 +913,6 @@ def handle_confirm(
             cart=_cart_dict(db, user_id),
             upsell=_upsell_dict(db, session_id),
         )
-    if session.user_id != user_id:
-        raise SessionOwnershipError(f"Session '{session_id}' does not belong to this principal.")
 
     pending = session.pending_tool_call
     tool_name = pending["name"]

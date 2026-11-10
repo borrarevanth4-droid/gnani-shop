@@ -98,6 +98,18 @@ def _previous_text(db: Session, session_id: str) -> str | None:
     return None
 
 
+def ensure_session_owner(db: Session, session_id: str, user_id: str) -> None:
+    """A conversation belongs to one buyer. Checked BEFORE anything else in a
+    voice turn: otherwise another buyer's last reply would be sent to Gnani as
+    context, and their transcript logged into someone else's conversation,
+    before the harness's own ownership check ran."""
+    from app.agent.harness import SessionOwnershipError
+
+    existing = agent_session_repo.get_session(db, session_id)
+    if existing is not None and existing.user_id != user_id:
+        raise SessionOwnershipError(f"Session '{session_id}' does not belong to this principal.")
+
+
 def run_voice_turn(
     db: Session,
     *,
@@ -109,6 +121,7 @@ def run_voice_turn(
     tts_model: str | None = None,
     language_hint: str | None = None,
 ) -> VoiceTurnResult:
+    ensure_session_owner(db, session_id, user_id)
     tts_model = tts_model or settings.gnani_tts_model
 
     # 1. Gnani hears it -------------------------------------------------------
@@ -172,6 +185,7 @@ def act_on_transcript(
     """Everything after Gnani has heard the buyer — shared by push-to-talk
     (REST) and the realtime conversation (WebSocket), so both get the same
     gate, the same agent, the same rulebook and the same audit trail."""
+    ensure_session_owner(db, session_id, user_id)
     tts_model = tts_model or settings.gnani_tts_model
     stt_info = stt_info or {}
     transcript = fast_path.fix_mishearings(transcript or "")
@@ -273,6 +287,7 @@ def fallback(db: Session, session_id: str, user_id: str, request_id: str | None,
              error: str) -> VoiceTurnResult:
     """Gnani unreachable: say so in the buyer's language and fall back to
     typing. Nothing else in the shop is affected."""
+    ensure_session_owner(db, session_id, user_id)
     logger.warning("voice turn fell back to text", extra={"session_id": session_id, "error": error})
     _audit.log_event(
         db, session_id=session_id, user_id=user_id, event_type="voice_fallback_to_text", actor="system",

@@ -44,4 +44,15 @@ def switch_role(
 ) -> RoleChoiceResult:
     if settings.app_env != "development":
         raise HTTPException(status_code=404, detail="Not found.")
+    if payload.role == "MERCHANT" and not can_be_merchant(principal.user_id, principal.email):
+        # The shop owner can read every buyer's conversations (audit trail),
+        # so becoming one is limited to MERCHANT_EMAILS and the demo accounts.
+        raise HTTPException(status_code=403, detail="Only the shop owner's accounts (MERCHANT_EMAILS) can open the merchant view.")
     return _set_role_and_reissue(db, principal.user_id, payload.role)
+
+
+def can_be_merchant(user_id: str, email: str | None) -> bool:
+    from app.testing.demo_login import DEMO_MERCHANT_ID
+
+    demo_ids = {settings.default_user_id, DEMO_MERCHANT_ID}
+    return user_id in demo_ids or (email or "").strip().lower() in settings.merchant_email_set

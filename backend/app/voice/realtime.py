@@ -33,6 +33,7 @@ from app.core import rate_limit
 from app.core.config import settings
 from app.core.logging import logger
 from app.database import SessionLocal
+from app.repositories import agent_session_repo
 from app.voice import service as voice_service
 from app.voice.gateway import USER_AGENT, voice_gateway
 from app.voice.hints import stt_language_code
@@ -63,10 +64,17 @@ async def voice_stream(ws: WebSocket) -> None:
     try:
         principal = _resolve_from_jwt(token, db) if token else None
         keyterms = build_keyterms(db) if principal else []
+        owner_ok = True
+        if principal is not None:
+            existing = agent_session_repo.get_session(db, session_id)
+            owner_ok = existing is None or existing.user_id == principal.user_id
     finally:
         db.close()
     if principal is None or principal.type != "buyer":
         await ws.close(code=1008, reason="Sign in as a buyer to use voice.")
+        return
+    if not owner_ok:
+        await ws.close(code=1008, reason="That conversation belongs to another account.")
         return
     try:
         rate_limit.check(principal.user_id, "voice", settings.rate_limit_voice_per_minute)

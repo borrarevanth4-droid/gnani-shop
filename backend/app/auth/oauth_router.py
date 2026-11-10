@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.audit.service import AuditService
 from app.auth.deps import get_principal
 from app.auth.principal import Principal
+from app.auth.role_router import can_be_merchant
 from app.auth.routing import AuthRequirement, SecureAPIRoute, public, requires
 from app.auth.security import create_access_token
 from app.core.config import settings
@@ -175,4 +176,6 @@ def get_me(principal: Principal = Depends(get_principal)) -> dict:
         "email": principal.email,
         "role": principal.role,
         "credential_id": principal.credential_id,
+        # May this person open the merchant view? (MERCHANT_EMAILS or a demo account)
+        "can_be_merchant": principal.type != "agent" and can_be_merchant(principal.user_id, principal.email),
     }

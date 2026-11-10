@@ -16,6 +16,8 @@ export interface AuthUser {
   email: string | null;
   role: "BUYER" | "MERCHANT" | null;
   credential_id: string | null;
+  // Only MERCHANT_EMAILS and the demo accounts may open the merchant view.
+  can_be_merchant?: boolean;
 }
 
 export function getToken(): string | null {
