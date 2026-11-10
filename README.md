@@ -1,5 +1,7 @@
 # Gnani Shop
 
+> **Solution pitch (1 page):** [Read it here](PITCH.md) · [PDF](pitch.pdf)
+
 **A grocery store you can talk to — in any of 10 Indian languages.**
 
 Speak Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Bengali, Gujarati, Punjabi,
@@ -231,7 +233,7 @@ conversation, so the next person on the same computer starts fresh.
 | The assistant said "removed milk" from an empty cart | A backup model invented the reply | "That's not in your cart" is now answered by code, in the buyer's language |
 | "Remove salt" sometimes *added* something | The model misread removals | Removals in 10 languages are resolved by code through the rulebook |
 | Asked "who is the president of America?", the assistant answered it | A general-purpose model answers anything; a prompt can only *ask* it not to | **ShopScopeRule** checks every AI reply in code: no shop action and no shop words → a fixed "I can only help with shopping" in the buyer's language, logged as a rulebook step. 24/24 off-topic and 24/24 shop questions classified correctly across 10 languages |
-| A second user could reach another's conversation by voice, and anyone could open the shop-owner view (which reads all chats) | Voice checked ownership too late; the role switch had no allow-list | Ownership checked before anything else; only `MERCHANT_EMAILS` can become shop owner. A test has a second user try 15 ways into the first user's data |
+| A second user could reach another's conversation by voice, and anyone could open the shop-owner view (which reads all chats) | Voice checked ownership too late; the role switch had no allow-list | Ownership checked before anything else; only `MERCHANT_EMAILS` can become shop owner. In a test, a second user made 14 attempts to reach the first user's data — all blocked |
 | Spoken tricks ("ignore the rules" in Hindi) | The injection scanner only knew English | Phrasings in all 10 languages + Hinglish; the rulebook re-checks every action anyway |
 
 ### Reliability and setup
@@ -434,7 +436,7 @@ example ngrok, with `NGROK_AUTHTOKEN` in `.env`) and open the HTTPS link on your
 | All automated tests (Gnani and AI mocked) | `..\venv\Scripts\python -m pytest -q` | **539 passed** |
 | Order understanding in 10 languages | included above (`tests/test_fast_path_languages.py`) | **46/46** orders understood; **26/26** remove / question / pay sentences never read as "add" |
 | Staying on topic (ShopScopeRule) | included above (`tests/test_shop_scope.py`) | **24/24** off-topic questions refused, **24/24** shop questions allowed, in 10 languages |
-| Privacy between users | included above (`tests/test_user_isolation.py`) | A second user tries 15 ways into the first user's chat, voice, audit, cart, cart history and orders: all refused |
+| Privacy between users | included above (`tests/test_user_isolation.py`) | A second user made 14 attempts to reach the first user's chat, voice, audit, cart, cart history and orders — all blocked |
 | Google sign-in | included above (`tests/test_google_oauth.py`) | Round trip stays on the browser's address; forged addresses ignored |
 | Live voice conversations — real Gnani audio in all 10 languages | `venv\Scripts\python eval/voice_journey.py` (from the main folder) | **15/15** conversations perfect, 45/45 replies spoken completely in the right language |
 | Safety evaluation (rulebook) | `python eval/run.py --stub` (from the main folder) | 41/41 scenarios, 0 false positives / negatives (last recorded run) |
