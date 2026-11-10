@@ -133,6 +133,7 @@ def run(only: str | None) -> int:
                                    request_id=f"{sid}-{i}", language_hint=lang)
                 t_turn = time.monotonic() - t0
                 last = r
+                lang = r.language or lang  # "speak Hindi" — the reply (and the buyer) switch language
                 # speak the reply exactly like the app (streamed)
                 t1 = time.monotonic()
                 first = None
