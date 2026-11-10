@@ -30,39 +30,30 @@ export default function ProductGrid({ products, onAdd, onView, addingSku, loadin
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
       {products.map((p) => (
-        <div
-          key={p.sku}
-          className="flex flex-col justify-between rounded-lg border border-line bg-surface p-4 transition-colors duration-150 hover:border-line-strong"
-        >
+        <div key={p.sku} className="flex flex-col justify-between rounded-md bg-surface-card p-6">
           <button onClick={() => onView(p)} className="text-left">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">{p.brand}</p>
-            <h3 className="mt-0.5 font-medium leading-snug text-ink hover:text-accent">{p.name}</h3>
-            {lang !== "en-IN" && p.aliases?.[lang] && (
-              <p className="mt-1 inline-block rounded-full bg-voice-soft px-2 py-0.5 text-xs text-voice-deep">{p.aliases[lang]}</p>
-            )}
-            <p className="mt-1 text-xs text-ink-soft">{p.unit}</p>
+            <p className="text-[12px] font-medium uppercase tracking-[0.6px] text-ink-faint">{p.brand}</p>
+            <h3 className="display mt-1 text-[20px] leading-snug text-ink hover:text-accent">{p.name}</h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-[13px] text-ink-soft">{p.unit}</span>
+              {lang !== "en-IN" && p.aliases?.[lang] && (
+                <span className="rounded-full bg-accent px-2.5 py-0.5 text-[12px] font-medium text-white">{p.aliases[lang]}</span>
+              )}
+            </div>
             {p.discount_pct ? (
-              <p className="mt-2 flex items-baseline gap-1.5">
-                <span className="font-mono text-xs tabular-nums text-ink-faint line-through">{p.price_display}</span>
-                <span className="font-mono text-lg font-semibold tabular-nums text-success">
-                  {p.effective_price_display}
-                </span>
-                <span className="text-xs font-medium text-success">-{p.discount_pct}%</span>
+              <p className="mt-4 flex items-baseline gap-2">
+                <span className="font-mono text-sm tabular-nums text-ink-faint line-through">{p.price_display}</span>
+                <span className="text-[24px] font-semibold tabular-nums text-commerce">{p.effective_price_display}</span>
+                <span className="text-xs font-bold text-commerce">-{p.discount_pct}%</span>
               </p>
             ) : (
-              <p className="mt-2 font-mono text-lg font-semibold tabular-nums text-ink">{p.price_display}</p>
+              <p className="mt-4 text-[24px] font-semibold tabular-nums text-ink">{p.price_display}</p>
             )}
-            <p className="mt-0.5 text-xs text-ink-faint">{p.stock > 0 ? `${t("inStock")} · ${p.stock}` : t("outOfStock")}</p>
+            <p className="mt-0.5 text-[13px] text-ink-faint">{p.stock > 0 ? `${t("inStock")} · ${p.stock}` : t("outOfStock")}</p>
           </button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => onAdd(p.sku)}
-            disabled={p.stock === 0 || addingSku === p.sku}
-            className="mt-3 w-full"
-          >
+          <Button variant="commerce" onClick={() => onAdd(p.sku)} disabled={p.stock === 0 || addingSku === p.sku} className="mt-5 w-full">
             {addingSku === p.sku ? "…" : t("add")}
           </Button>
         </div>

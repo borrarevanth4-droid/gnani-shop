@@ -17,7 +17,7 @@ owner pre-authorised this agent's autopay and the cart re-validated).
 
 import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
@@ -121,6 +121,8 @@ class HarnessResult:
     # the order id, amount and the Wallet / Cash on Delivery choice the
     # frontend shows (or, for Mode B autopay, the completed payment).
     payment: dict | None = None
+    # The harness loop for this turn (see turn_steps) — filled in by handle_chat.
+    steps: list = field(default_factory=list)
     # The outstanding upsell offer (if any), surfaced as a structured field —
     # not just prose in `reply` — so a caller with no access to this
     # session's chat history (a UI, an external buyer agent) can still act
@@ -187,7 +189,37 @@ def handle_chat(
 
     result = _run_loop(db, session, request_id)
     demand_capture.maybe_capture(db, session_id, user_message, turn_started_at)
+    result.steps = turn_steps(db, session_id, turn_started_at)
     return result
+
+
+_STEP_EVENTS = {
+    "tool_call_proposed", "policy_decision", "tool_executed", "malformed_tool_call", "unknown_tool",
+    "confirmation_approved", "confirmation_rejected", "upsell_proposed", "upsell_blocked",
+    "model_call", "model_call_failed", "iteration_limit_hit", "payment_succeeded", "payment_failed",
+}
+
+
+def turn_steps(db: Session, session_id: str, since) -> list[dict]:
+    """The harness loop for one turn, read back from the audit log — what the
+    model proposed, which rule decided, what actually ran. Shown in the UI so
+    "the AI suggests, the rulebook decides" is visible on every turn."""
+    steps: list[dict] = []
+    for e in _audit.get_trail(db, session_id):
+        if e.timestamp < since or e.event_type not in _STEP_EVENTS:
+            continue
+        steps.append({
+            "type": e.event_type,
+            "tool": e.tool_name,
+            "args": (e.tool_args or {}) if e.event_type != "tool_call_proposed" else None,
+            "decision": e.decision,
+            "rule": e.rule_name,
+            "reason": (e.reason or "")[:200] or None,
+            "model": e.model_used,
+            "latency_ms": e.latency_ms,
+            "fallback": e.fallback_used,
+        })
+    return steps
 
 
 def handle_confirm(
@@ -394,10 +426,15 @@ def _confirmation_reply(session, tool_name: str, action: ProposedCartState, reas
     buyer, a non-English buyer hears/reads the amount in their own language
     (the English reason stays on the pending card for the record)."""
     lang = getattr(session, "language", None)
-    if tool_name != "initiate_payment" or not lang or normalize_language(lang) == "en-IN" or not action.cart_line_items:
+    if not lang or normalize_language(lang) == "en-IN":
         return reason
-    total = sum(line.product.price_paise * line.quantity for line in action.cart_line_items)
-    return spoken_phrase("confirm_amount", lang, amount=rupees(total))
+    if tool_name == "initiate_payment" and action.cart_line_items:
+        total = sum(line.product.price_paise * line.quantity for line in action.cart_line_items)
+        return spoken_phrase("confirm_amount", lang, amount=rupees(total))
+    if tool_name == "add_to_cart":
+        # ConfirmationThresholdRule: the cart would go over the tap threshold.
+        return spoken_phrase("confirm_amount", lang, amount=rupees(action.proposed_cart_total_paise))
+    return reason
 
 
 # The only deciding rules under which an agent's payment may run without a
@@ -782,7 +819,9 @@ def _language_directive(session) -> str:
             f"LANGUAGE: The buyer is using {lang.english_name} ({lang.native_name}). Reply only in "
             f"{lang.english_name}, written in the {lang.script} script. Keep brand and product names exactly as "
             "tool results give them. Tool arguments (like search queries) should use the catalog's English product "
-            "words, e.g. 'atta', 'milk', 'rice' — translate the buyer's words when calling tools."
+            "words, e.g. 'atta', 'milk', 'rice' — translate the buyer's words when calling tools. If the buyer "
+            f"mixes English words into {lang.english_name} (e.g. Tinglish, Tanglish, Hinglish), that is normal: "
+            f"understand it, and reply in natural {lang.english_name} that keeps English product words in Latin script."
         )
     elif lang is not None:
         parts.append(

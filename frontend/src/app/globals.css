@@ -1,55 +1,75 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Gnani Shop design tokens.
+   Gnani Shop design tokens — a chapter-band system.
 
-   Voice-first: the one strong colour on the page is the voice
-   colour (warm saffron), used for the mic, the live waveform and
-   anything Gnani is doing right now. Everything else is calm:
-   deep indigo for primary actions and active state, cool neutrals,
-   near-black text.
+   The page is a stack of full-bleed bands: black (editorial /
+   voice moments), white (shopping and utility), and one blue
+   band (the footer). Blue is the single primary action colour
+   on every fully-rounded pill; a warm orange is reserved for
+   commerce actions only (Add, Buy, Pay). Display type is light
+   (weight 300) and airy; body is 16–18px at 1.5. Cards are flat
+   8px panels on a cool off-white — no resting shadows. Depth comes
+   from the contrast between bands, not from decoration.
 
-   Ten Indian scripts must look right side by side, so the sans
-   stack falls back to Nirmala UI / Noto Sans, which cover
-   Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada
-   and Malayalam. Numbers use Geist Mono with tabular figures so
-   every rupee amount lines up.
+   Ten Indian scripts must sit beside each other, so every font
+   stack falls back to Nirmala UI / Noto Sans.
    ============================================================ */
 
 :root {
-  --color-ink: #16142a;
-  --color-ink-soft: #565370;
-  --color-ink-faint: #8c89a3;
+  /* text */
+  --color-ink: #000000;
+  --color-ink-soft: rgba(0, 0, 0, 0.6);
+  --color-ink-faint: #6b6b6b;
 
-  --color-paper: #f6f5fb;
+  /* light canvas */
+  --color-paper: #ffffff;
   --color-surface: #ffffff;
+  --color-surface-card: #f5f7fa;
+  --color-surface-soft: #f3f3f3;
 
-  --color-line: #e6e4f0;
-  --color-line-strong: #d0cde0;
+  --color-line: #ebebeb;
+  --color-line-strong: #cccccc;
 
-  /* Indigo: primary actions, links, active nav. */
-  --color-accent: #4b3fd8;
-  --color-accent-hover: #3b30b8;
-  --color-accent-soft: #eeecff;
+  /* primary blue — every primary pill, active chip, footer */
+  --color-accent: #0070d1;
+  --color-accent-hover: #0064b7;
+  --color-accent-active: #004d8d;
+  --color-accent-soft: #e8f2fc;
 
-  /* Saffron: the voice. Mic, waveform, "Gnani is listening/speaking". */
-  --color-voice: #f26b1d;
-  --color-voice-deep: #c94f0c;
-  --color-voice-soft: #fff1e7;
+  /* voice uses the primary blue family (the mic is the primary action) */
+  --color-voice: #0070d1;
+  --color-voice-deep: #0064b7;
+  --color-voice-soft: #e8f2fc;
 
-  --color-success: #1f6b45;
-  --color-success-soft: #e7f5ed;
-  --color-danger: #a8321d;
-  --color-danger-soft: #fcebe7;
+  /* commerce orange — Add / Buy / Pay only */
+  --color-commerce: #d53b00;
+  --color-commerce-hover: #aa2f00;
+  --color-commerce-soft: #fdeee7;
+
+  /* dark canvas */
+  --color-night: #000000;
+  --color-night-elevated: #121314;
+  --color-night-card: #181818;
+  --color-night-line: rgba(229, 229, 229, 0.2);
+  --color-on-night: #ffffff;
+  --color-on-night-soft: rgba(255, 255, 255, 0.7);
+  --color-on-night-faint: rgba(229, 229, 229, 0.55);
+  --color-link-night: #53b1ff;
+
+  --color-success: #1d7a46;
+  --color-success-soft: #e8f5ee;
+  --color-danger: #c81b3a;
+  --color-danger-soft: #fdecef;
   --color-warning: #8a5310;
   --color-warning-soft: #fbf1df;
 
-  --radius-sm: 8px;
-  --radius-md: 10px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
   --radius-lg: 16px;
 
-  --shadow-elevated: 0 8px 24px -8px rgb(22 20 42 / 0.16), 0 1px 2px rgb(22 20 42 / 0.06);
-  --shadow-voice: 0 10px 30px -8px rgb(242 107 29 / 0.45);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.16);
+  --shadow-voice: 0 0 0 8px rgba(0, 112, 209, 0.18);
 }
 
 @theme inline {
@@ -58,14 +78,28 @@
   --color-ink-faint: var(--color-ink-faint);
   --color-paper: var(--color-paper);
   --color-surface: var(--color-surface);
+  --color-surface-card: var(--color-surface-card);
+  --color-surface-soft: var(--color-surface-soft);
   --color-line: var(--color-line);
   --color-line-strong: var(--color-line-strong);
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
+  --color-accent-active: var(--color-accent-active);
   --color-accent-soft: var(--color-accent-soft);
   --color-voice: var(--color-voice);
   --color-voice-deep: var(--color-voice-deep);
   --color-voice-soft: var(--color-voice-soft);
+  --color-commerce: var(--color-commerce);
+  --color-commerce-hover: var(--color-commerce-hover);
+  --color-commerce-soft: var(--color-commerce-soft);
+  --color-night: var(--color-night);
+  --color-night-elevated: var(--color-night-elevated);
+  --color-night-card: var(--color-night-card);
+  --color-night-line: var(--color-night-line);
+  --color-on-night: var(--color-on-night);
+  --color-on-night-soft: var(--color-on-night-soft);
+  --color-on-night-faint: var(--color-on-night-faint);
+  --color-link-night: var(--color-link-night);
   --color-success: var(--color-success);
   --color-success-soft: var(--color-success-soft);
   --color-danger: var(--color-danger);
@@ -80,8 +114,9 @@
   --shadow-elevated: var(--shadow-elevated);
   --shadow-voice: var(--shadow-voice);
 
-  --font-sans: var(--font-geist-sans), "Nirmala UI", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil",
-    "Noto Sans Telugu", system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Nirmala UI", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Telugu",
+    "Noto Sans Tamil", system-ui, Arial, sans-serif;
+  --font-display: var(--font-roboto), "Nirmala UI", "Noto Sans", system-ui, Arial, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
@@ -96,7 +131,23 @@ html {
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-feature-settings: "cv11", "ss01";
+  font-family: var(--font-sans);
+  letter-spacing: 0.1px;
+}
+
+/* Light, airy display headings — the system's signature voice. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: -0.1px;
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 300 !important;
+  letter-spacing: 0.1px;
 }
 
 .tabular-nums {
@@ -114,22 +165,39 @@ body {
   color: var(--color-ink);
 }
 
-/* --- Voice motion ---------------------------------------------------- */
-
-@keyframes voice-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgb(242 107 29 / 0.45);
-  }
-  70% {
-    box-shadow: 0 0 0 18px rgb(242 107 29 / 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgb(242 107 29 / 0);
-  }
+/* Full-bleed chapter bands */
+.band-night {
+  background: var(--color-night);
+  color: var(--color-on-night);
+}
+.band-night-fade {
+  background: linear-gradient(180deg, var(--color-night-elevated) 0%, var(--color-night) 100%);
+  color: var(--color-on-night);
+}
+.band-light {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+.band-blue {
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
+/* --- Voice motion ---------------------------------------------------- */
+
+@keyframes voice-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 112, 209, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 26px rgba(0, 112, 209, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 112, 209, 0);
+  }
+}
 .voice-pulse {
-  animation: voice-pulse 1.6s ease-out infinite;
+  animation: voice-ring 1.5s ease-out infinite;
 }
 
 @keyframes voice-dots {
@@ -137,29 +205,38 @@ body {
   80%,
   100% {
     opacity: 0.25;
-    transform: translateY(0);
   }
   40% {
     opacity: 1;
-    transform: translateY(-2px);
   }
 }
-
 .voice-dot {
   animation: voice-dots 1.2s ease-in-out infinite;
 }
 
+@keyframes bar-dance {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.speak-bar {
+  animation: bar-dance 0.9s ease-in-out infinite;
+  transform-origin: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .voice-pulse,
-  .voice-dot {
+  .voice-dot,
+  .speak-bar {
     animation: none;
   }
 }
 
-/* The hero band behind the voice assistant. */
+/* kept for older pages */
 .gnani-hero {
-  background:
-    radial-gradient(900px 300px at 15% -10%, rgb(75 63 216 / 0.14), transparent 60%),
-    radial-gradient(700px 260px at 95% 0%, rgb(242 107 29 / 0.12), transparent 60%),
-    var(--color-surface);
+  background: var(--color-surface-card);
 }

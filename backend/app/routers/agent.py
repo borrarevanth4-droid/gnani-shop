@@ -31,6 +31,7 @@ def to_response(result) -> ChatResponse:
         payment=PaymentInfoOut(**result.payment) if result.payment else None,
         upsell=UpsellOfferOut(**result.upsell) if result.upsell else None,
         product_suggestion=ProductSuggestionOut(**result.product_suggestion) if result.product_suggestion else None,
+        steps=getattr(result, "steps", []) or [],
     )
 
 

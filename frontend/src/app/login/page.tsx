@@ -73,29 +73,30 @@ function LoginInner() {
   }
 
   return (
-    <div className="mx-auto grid min-h-[75vh] w-full max-w-5xl items-center gap-8 px-6 py-10 md:grid-cols-2">
+    <div className="band-night-fade">
+    <div className="mx-auto grid min-h-[80vh] w-full max-w-[1280px] items-center gap-12 px-6 py-16 md:grid-cols-[1.2fr_1fr]">
       <div className="hidden md:block">
-        <span className="inline-flex items-center gap-2 rounded-full bg-voice-soft px-3 py-1 text-xs font-medium text-voice-deep">
+        <span className="inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-xs font-medium text-white">
           <Mic size={13} /> Powered by Gnani Vachana
         </span>
-        <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-ink">
+        <h2 className="display mt-6 text-[44px] leading-tight text-white sm:text-[54px]">
           Shop by talking.
           <br />
-          <span className="text-voice-deep">In your language.</span>
+          <span className="text-link-night">In your language.</span>
         </h2>
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-soft">
+        <p className="mt-4 max-w-md text-[17px] leading-relaxed text-on-night-soft">
           Speak to Gnani Shop in any of 10 Indian languages. It understands, fills your cart, reads the total back to you — and never
           spends a rupee without your tap.
         </p>
         <div className="mt-5 flex max-w-md flex-wrap gap-1.5">
           {["हिन्दी", "English", "தமிழ்", "తెలుగు", "ಕನ್ನಡ", "മലയാളം", "मराठी", "বাংলা", "ગુજરાતી", "ਪੰਜਾਬੀ"].map((l) => (
-            <span key={l} className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink-soft">
+            <span key={l} className="rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-bold text-white">
               {l}
             </span>
           ))}
         </div>
       </div>
-      <Card className="shadow-elevated">
+      <Card className="bg-white p-2">
         <CardBody className="flex flex-col items-center gap-4 text-center">
           <Wordmark />
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Sign in</h1>
@@ -111,7 +112,7 @@ function LoginInner() {
           )}
           <a
             href={googleLoginUrl()}
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-md border border-line-strong bg-surface px-4 py-2.5 text-sm font-medium text-ink transition-colors duration-150 hover:bg-black/[0.02] focus-visible:outline-2 focus-visible:outline-accent"
+            className="inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-accent px-6 text-base font-bold text-white transition-colors duration-150 hover:bg-accent-hover"
           >
             <LogIn size={15} />
             Sign in with Google
@@ -161,6 +162,7 @@ function LoginInner() {
           )}
         </CardBody>
       </Card>
+    </div>
     </div>
   );
 }

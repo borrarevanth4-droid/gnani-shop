@@ -101,22 +101,54 @@ function Shop() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex w-full flex-col">
+      {/* Chapter 1 — the voice assistant (dark band) */}
       <VoiceAssistant onCart={setCart} onPaid={refreshCart} />
 
-      {error && <div className="rounded-lg border border-danger/25 bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <main className="flex flex-col gap-4">
-          <SearchBox value={search} onChange={setSearch} />
-          <CategoryTabs categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
-          <ProductGrid products={products} onAdd={handleAdd} onView={setViewingProduct} addingSku={addingSku} loading={loading} />
-        </main>
-
-        <div className="lg:sticky lg:top-20 lg:self-start">
-          <CartSidebar cart={cart} onRemove={handleRemove} removingId={removingId} onBuyNow={handleBuyNow} buyingNow={buyingNow} />
+      {/* Chapter 2 — shopping (light band) */}
+      <section className="band-light">
+        <div className="mx-auto max-w-[1280px] px-4 py-16 sm:px-6 lg:py-24">
+          <h2 className="display text-[35px] text-ink sm:text-[44px]">Or browse the shelves</h2>
+          <p className="mt-2 max-w-xl text-[17px] text-ink-soft">
+            Search in any language — ఆట్టా, दूध, நெய், aata — the same products come up.
+          </p>
+          {error && <div className="mt-6 rounded-md bg-danger-soft px-4 py-3 text-sm text-danger">{error}</div>}
+          <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_340px]">
+            <main className="flex flex-col gap-6">
+              <SearchBox value={search} onChange={setSearch} />
+              <CategoryTabs categories={categories} selected={selectedCategory} onSelect={setSelectedCategory} />
+              <ProductGrid products={products} onAdd={handleAdd} onView={setViewingProduct} addingSku={addingSku} loading={loading} />
+            </main>
+            <div className="lg:sticky lg:top-20 lg:self-start">
+              <CartSidebar cart={cart} onRemove={handleRemove} removingId={removingId} onBuyNow={handleBuyNow} buyingNow={buyingNow} />
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Chapter 3 — how it works (dark band) */}
+      <section className="band-night">
+        <div className="mx-auto max-w-[1280px] px-4 py-16 sm:px-6 lg:py-24">
+          <h2 className="display text-[35px] text-white sm:text-[44px]">Every request runs the same loop</h2>
+          <p className="mt-2 max-w-2xl text-[17px] text-on-night-soft">
+            Open “Harness loop” under any reply to see these steps for that exact turn.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["Gnani hears", "Prisma v3.0 turns speech into text and names the language — Telugu, Tamil, Hinglish and 7 more."],
+              ["The AI suggests", "The shop assistant proposes one step at a time: search, add to cart, ask to pay. It can't execute anything."],
+              ["The rulebook decides", "Plain code checks the real price, stock, your budget and limits: allow, ask you, or refuse — with a reason."],
+              ["You tap to pay", "Money only moves on your tap — Wallet or Cash on Delivery. Gnani Timbre reads the total back in your language."],
+            ].map(([title, body], i) => (
+              <div key={title} className="rounded-md bg-night-card p-6">
+                <p className="font-mono text-sm text-link-night">0{i + 1}</p>
+                <p className="display mt-3 text-[22px] text-white">{title}</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-on-night-soft">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {viewingProduct && (
         <ProductDetailModal

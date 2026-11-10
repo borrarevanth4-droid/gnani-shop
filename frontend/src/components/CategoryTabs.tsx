@@ -7,9 +7,9 @@ interface Props {
 }
 
 const CHIP_BASE =
-  "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors duration-150 whitespace-nowrap";
-const CHIP_ACTIVE = "border-ink bg-ink text-white";
-const CHIP_INACTIVE = "border-line text-ink-soft hover:border-line-strong hover:text-ink";
+  "rounded-full px-4 py-2 text-[13px] font-bold tracking-[0.3px] transition-colors duration-150 whitespace-nowrap";
+const CHIP_ACTIVE = "bg-accent text-white";
+const CHIP_INACTIVE = "bg-surface-card text-ink hover:bg-surface-soft";
 
 export default function CategoryTabs({ categories, selected, onSelect }: Props) {
   const totalCount = categories.reduce((sum, c) => sum + c.product_count, 0);

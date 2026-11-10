@@ -80,3 +80,5 @@ class ChatResponse(BaseModel):
     payment: PaymentInfoOut | None = None
     upsell: UpsellOfferOut | None = None
     product_suggestion: ProductSuggestionOut | None = None
+    # The harness loop for this turn: what the model proposed, which rule decided, what ran.
+    steps: list[dict] = []

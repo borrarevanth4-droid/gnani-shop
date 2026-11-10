@@ -95,6 +95,7 @@ class VoiceTurnOut(BaseModel):
     upsell: dict | None = None
     product_suggestion: dict | None = None
     stt: dict = Field(default_factory=dict)
+    steps: list[dict] = Field(default_factory=list)
     fell_back_to_text: bool = False
     error: str | None = None
 

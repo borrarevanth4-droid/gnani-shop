@@ -35,6 +35,7 @@ from app.core.logging import logger
 from app.database import SessionLocal
 from app.voice import service as voice_service
 from app.voice.gateway import USER_AGENT, voice_gateway
+from app.voice.hints import stt_language_code
 from app.voice.keyterms import build_keyterms
 from app.voice.languages import TIMBRE_V3, TIMBRE_V25, is_supported
 
@@ -82,7 +83,7 @@ async def voice_stream(ws: WebSocket) -> None:
     headers = {
         "x-api-key-id": settings.gnani_api_key,
         "model": settings.gnani_stt_model,
-        "language_code": hint or settings.gnani_stt_language,
+        "language_code": stt_language_code(hint),
         "format": settings.gnani_stt_format,
         "x-sample-rate": "16000",
         "x-idle-timeout-sec": "120",

@@ -441,3 +441,22 @@ def test_every_tool_schema_has_a_parser_case():
         fn = schema["function"]
         args = {k: samples[k] for k in fn["parameters"].get("properties", {}) if k in samples}
         assert _parse_tool_call(fn["name"], _json.dumps(args)) is not None, fn["name"]
+
+
+def test_stt_language_hints():
+    """A known language goes first as a hint (with English for code-mixing);
+    unknown → pure auto-detect."""
+    from app.voice.hints import stt_language_code
+
+    assert stt_language_code("te-IN") == "te-IN,en-IN"
+    assert stt_language_code("en-IN") == "en-IN,hi-IN"
+    assert stt_language_code(None) == "indic-auto"
+    assert stt_language_code("xx-YY") == "indic-auto"
+
+
+def test_voice_turn_returns_the_harness_steps(client, session_factory):
+    _seed(session_factory)
+    res = _turn(client, [_call("add_to_cart", {"sku": "GRO-002", "quantity": 1}), _final("ok")], _stt("atta", "te-IN"), "steps-s")
+    steps = res.json()["steps"]
+    kinds = [s["type"] for s in steps]
+    assert "tool_call_proposed" in kinds and "policy_decision" in kinds and "tool_executed" in kinds

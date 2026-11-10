@@ -1,35 +1,39 @@
 "use client";
 
-// The voice-first shop assistant — every Gnani Vachana feature the buyer
-// sees lives here:
-//   • Prisma v3.0 speech-to-text, auto language detection (indic-auto), 10 languages
-//   • push-to-talk (REST) or a live conversation (realtime WebSocket)
-//   • Timbre v3.0 / v2.5 voices, streamed so the reply starts speaking at once
-//   • an "Under the hood" panel with Gnani's own timings for every turn
-// Safety is unchanged from typed chat: the same agent and rulebook decide,
-// and confirming or paying is always a tap on this screen, never a word.
+// The voice-first shop assistant — a full-bleed dark band.
+//
+// Hands-free by default: one press starts listening; the browser detects
+// when you stop talking (a simple energy-based voice-activity detector) and
+// sends the clip; Gnani Prisma transcribes it with your language as a hint;
+// the agent harness proposes, the rulebook decides; Gnani Timbre speaks the
+// reply; then it listens again. Click the mic while listening to stop early,
+// click while it's speaking (or "End") to finish the conversation.
+//
+// Confirming and paying are always taps on the screen, never words.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Keyboard, Loader2, Mic, Radio, Send, ShieldCheck, Square, Volume2, VolumeX } from "lucide-react";
-import {
-  confirmPendingAction,
-  fetchVoiceCatalog,
-  sendAgentMessage,
-  sendVoiceTurn,
-  synthesizeStream,
-  voiceStreamUrl,
-} from "@/lib/api";
-import { getToken } from "@/lib/auth";
+import { ChevronDown, Keyboard, Loader2, Mic, Send, ShieldCheck, Square, Volume2, VolumeX } from "lucide-react";
+import { confirmPendingAction, fetchVoiceCatalog, sendAgentMessage, sendVoiceTurn, synthesizeStream } from "@/lib/api";
 import { getOrCreateSessionId, startNewSessionId } from "@/lib/checkout";
 import { LANGUAGES, nativeName, useI18n } from "@/lib/i18n";
 import { MicRecorder, PcmPlayer } from "@/lib/voice";
 import type { Cart, PaymentInfo, PaymentResult, PendingAction, VoiceCatalog, VoiceTurn } from "@/lib/types";
 import PaymentSheet from "@/components/PaymentSheet";
 import Button from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 
 type Phase = "idle" | "listening" | "thinking" | "speaking";
-type Mode = "ptt" | "live";
+
+export interface HarnessStep {
+  type: string;
+  tool: string | null;
+  args: Record<string, unknown> | null;
+  decision: string | null;
+  rule: string | null;
+  reason: string | null;
+  model: string | null;
+  latency_ms: number | null;
+  fallback: boolean | null;
+}
 
 interface Turn {
   id: string;
@@ -37,35 +41,108 @@ interface Turn {
   text: string;
   language?: string | null;
   spoken?: string;
-  meta?: Record<string, string | number | boolean | null | undefined>;
+  meta?: Record<string, string | number | null | undefined>;
+  steps?: HarnessStep[];
   blocked?: boolean;
 }
 
 const VOICE_PREF_KEY = "gnani-shop-voice";
 
+// Voice-activity detection tuning (levels are RMS×4, clipped to 0..1).
+const VAD = {
+  calibrateMs: 350, // learn the room's noise floor first
+  minThreshold: 0.07,
+  floorMultiplier: 2.4,
+  speechConfirmMs: 160, // this much continuous voice = speech started
+  endSilenceMs: 1300, // this much quiet after speech = you've finished
+  noSpeechTimeoutMs: 8000,
+  maxTurnMs: 25000, // Prisma REST accepts up to 30 s
+};
+
+function StepList({ steps }: { steps: HarnessStep[] }) {
+  return (
+    <ol className="mt-2 space-y-1.5 border-l border-night-line pl-3 text-[12px]">
+      {steps
+        .filter((s) => s.type !== "model_call" || s.fallback)
+        .map((s, i) => {
+          const tone =
+            s.decision === "DENY"
+              ? "text-[#ff8a8a]"
+              : s.decision === "REQUIRE_CONFIRMATION"
+                ? "text-[#ffce21]"
+                : s.decision === "ALLOW"
+                  ? "text-[#7ee2a8]"
+                  : "text-on-night-soft";
+          let label = s.type.replace(/_/g, " ");
+          if (s.type === "tool_call_proposed") label = `AI proposed ${s.tool}`;
+          if (s.type === "policy_decision")
+            label = `Rulebook: ${s.decision === "REQUIRE_CONFIRMATION" ? "ASK THE HUMAN" : s.decision} · ${s.rule === "__default__" ? "no rule objected" : s.rule}`;
+          if (s.type === "tool_executed") label = `Executed ${s.tool}`;
+          if (s.type === "model_call") label = `Switched to backup model ${s.model}`;
+          if (s.type === "malformed_tool_call") label = `Rejected malformed call to ${s.tool}`;
+          if (s.type === "upsell_proposed") label = `Offer proposed: ${s.tool}`;
+          if (s.type === "upsell_blocked") label = `Offer blocked: ${s.tool}`;
+          return (
+            <li key={i} className={tone}>
+              <span className="mr-1 text-on-night-faint">{i + 1}.</span>
+              {label}
+              {s.type === "policy_decision" && s.args && "sku" in s.args && (
+                <span className="text-on-night-faint">
+                  {" "}
+                  — {String(s.args.sku)}
+                  {"quantity" in s.args ? ` ×${String(s.args.quantity)}` : ""}
+                </span>
+              )}
+            </li>
+          );
+        })}
+    </ol>
+  );
+}
+
+type AnyTurn =
+  | VoiceTurn
+  | (Partial<VoiceTurn> & {
+      reply: string;
+      status: VoiceTurn["status"];
+      cart: Cart;
+      pending: PendingAction | null;
+      payment: PaymentInfo | null;
+      steps?: HarnessStep[];
+    });
+
 export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart: (cart: Cart) => void; onPaid?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const [catalog, setCatalog] = useState<VoiceCatalog | null>(null);
-  const [mode, setMode] = useState<Mode>("ptt");
   const [phase, setPhase] = useState<Phase>("idle");
   const [level, setLevel] = useState(0);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [payment, setPayment] = useState<PaymentInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState("");
   const [speak, setSpeak] = useState(true);
+  const [handsFree, setHandsFree] = useState(true);
   const [ttsModel, setTtsModel] = useState("timbre-v3.0");
   const [voice, setVoice] = useState("Shivani");
-  const [openMeta, setOpenMeta] = useState<string | null>(null);
+  const [openSteps, setOpenSteps] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState("");
+  const [conversingUi, setConversingUi] = useState(false);
 
   const recorder = useRef<MicRecorder | null>(null);
   const player = useRef<PcmPlayer | null>(null);
-  const ws = useRef<WebSocket | null>(null);
-  const muted = useRef(false); // live mode: don't send mic audio while Gnani is speaking
+  const levelRef = useRef(0);
+  const raf = useRef<number | null>(null);
+  const conversing = useRef(false); // hands-free loop active
+  const stopping = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  function setConversing(v: boolean) {
+    conversing.current = v;
+    setConversingUi(v);
+  }
 
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -82,7 +159,9 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     });
     fetchVoiceCatalog().then(setCatalog).catch(() => {});
     return () => {
-      ws.current?.close();
+      conversing.current = false;
+      if (raf.current) cancelAnimationFrame(raf.current);
+      recorder.current?.stop();
       player.current?.stop();
     };
   }, []);
@@ -100,19 +179,19 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
   }, [turns, phase]);
 
   const voicesForModel = (catalog?.tts[ttsModel]?.voices ?? []).filter(
-    (v) => ttsModel === "timbre-v3.0" || !v.preferred_language || v.preferred_language === lang || (lang === "hi-IN" && v.preferred_language === "hi-en")
+    (v) =>
+      ttsModel === "timbre-v3.0" ||
+      !v.preferred_language ||
+      v.preferred_language === lang ||
+      (lang === "hi-IN" && v.preferred_language === "hi-en")
   );
 
   // ------------------------------------------------------------ speaking
 
   const say = useCallback(
-    async (spokenText: string, language: string | null, metaId?: string) => {
-      if (!speak || !spokenText.trim()) {
-        setPhase("idle");
-        return;
-      }
+    async (spokenText: string, language: string | null) => {
+      if (!speak || !spokenText.trim()) return;
       setPhase("speaking");
-      muted.current = true;
       player.current?.stop();
       const p = new PcmPlayer();
       player.current = p;
@@ -121,44 +200,34 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
       });
       try {
         const v = ttsModel === "timbre-v2.5" && !voicesForModel.some((x) => x.name === voice) ? undefined : voice;
-        const { firstChunkMs } = await synthesizeStream(
-          { text: spokenText, voice: v, model: ttsModel, language, sessionId },
-          (pcm, rate) => p.enqueue(pcm, rate)
-        );
-        if (metaId) {
-          setTurns((ts) =>
-            ts.map((x) => (x.id === metaId ? { ...x, meta: { ...x.meta, "TTS model": ttsModel, Voice: v ?? "auto", "First audio": firstChunkMs != null ? `${firstChunkMs} ms` : "—" } } : x))
-          );
-        }
-        await Promise.race([done, new Promise((r) => setTimeout(r, 30_000))]);
+        let got = false;
+        await synthesizeStream({ text: spokenText, voice: v, model: ttsModel, language, sessionId }, (pcm, rate) => {
+          got = true;
+          p.enqueue(pcm, rate);
+        });
+        if (got) await Promise.race([done, new Promise((r) => setTimeout(r, 30_000))]);
       } catch (e) {
         setError(`Speech unavailable: ${e instanceof Error ? e.message : String(e)}`);
-      } finally {
-        muted.current = false;
-        setPhase((ph) => (ph === "speaking" ? (mode === "live" && ws.current ? "listening" : "idle") : ph));
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [speak, ttsModel, voice, sessionId, mode, lang, catalog]
+    [speak, ttsModel, voice, sessionId, lang, catalog]
   );
 
   // ------------------------------------------------------------ applying a turn
 
-  function applyTurn(r: VoiceTurn | (Omit<VoiceTurn, "transcript" | "language" | "detected_language" | "gate_allowed" | "gate_rule" | "spoken_text" | "stt" | "fell_back_to_text" | "error"> & { spoken_text?: string }), userText: string | null, language: string | null) {
+  function applyTurn(r: AnyTurn, userText: string | null, language: string | null): string {
     const id = crypto.randomUUID();
-    const isVoice = "gate_rule" in r;
-    const meta: Turn["meta"] = isVoice
+    const v = r as VoiceTurn;
+    const meta: Turn["meta"] = v.stt
       ? {
-          "STT model": (r as VoiceTurn).stt?.model ?? "prisma-v3.0",
-          Format: (r as VoiceTurn).stt?.format ?? "transcribe",
-          "Detected language": (r as VoiceTurn).detected_language ?? "—",
-          "Gnani processing": (r as VoiceTurn).stt?.processing_time_ms != null ? `${(r as VoiceTurn).stt.processing_time_ms} ms` : "—",
-          "Round trip": (r as VoiceTurn).stt?.round_trip_ms != null ? `${(r as VoiceTurn).stt.round_trip_ms} ms` : "—",
-          "Voice gate": (r as VoiceTurn).gate_rule === "__default__" ? "allowed" : (r as VoiceTurn).gate_rule,
-          "Agent status": r.status,
-          ...(r.pending ? { "Rule that decided": r.pending.rule_name } : {}),
+          "Speech model": v.stt.model ?? "prisma-v3.0",
+          Detected: v.detected_language ?? "—",
+          "Gnani time": v.stt.processing_time_ms != null ? `${v.stt.processing_time_ms} ms` : "—",
+          "Round trip": v.stt.round_trip_ms != null ? `${v.stt.round_trip_ms} ms` : "—",
+          "Voice gate": v.gate_rule === "__default__" ? "allowed" : v.gate_rule,
         }
-      : { Channel: "typed", "Agent status": r.status, ...(r.pending ? { "Rule that decided": r.pending.rule_name } : {}) };
+      : undefined;
     setTurns((ts) => [
       ...ts,
       ...(userText ? [{ id: id + "-u", role: "user" as const, text: userText, language }] : []),
@@ -166,133 +235,140 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
         id,
         role: "assistant" as const,
         text: r.reply,
-        spoken: r.spoken_text ?? r.reply,
+        spoken: v.spoken_text ?? r.reply,
         language,
         meta,
-        blocked: isVoice && !(r as VoiceTurn).gate_allowed,
+        steps: ((r as { steps?: HarnessStep[] }).steps ?? []) as HarnessStep[],
+        blocked: v.gate_allowed === false && !!v.gate_rule,
       },
     ]);
+    setOpenSteps(id);
     onCart(r.cart);
     setPending(r.status === "awaiting_confirmation" ? r.pending : null);
     if (r.payment && r.payment.status === "AWAITING_PAYMENT") setPayment(r.payment);
     return id;
   }
 
-  // ------------------------------------------------------------ push-to-talk
+  // ------------------------------------------------------------ hands-free listening
 
-  async function startPtt() {
+  function stopMeter() {
+    if (raf.current) cancelAnimationFrame(raf.current);
+    raf.current = null;
+    setLevel(0);
+  }
+
+  async function startListening() {
     setError(null);
+    setNotice(null);
     player.current?.stop();
     try {
-      const rec = new MicRecorder(setLevel);
+      const rec = new MicRecorder((l) => {
+        levelRef.current = l;
+      });
       await rec.start();
       recorder.current = rec;
+      stopping.current = false;
       setPhase("listening");
+      runVad();
     } catch {
+      setConversing(false);
       setError("Microphone permission is needed for voice. You can type instead.");
       setTyping(true);
+      setPhase("idle");
     }
   }
 
-  async function stopPtt() {
+  function runVad() {
+    const started = performance.now();
+    let noise = 0;
+    let voicedSince: number | null = null;
+    let speech = false;
+    let lastVoice = started;
+    const tick = () => {
+      if (!recorder.current || stopping.current) return;
+      const now = performance.now();
+      const l = levelRef.current;
+      setLevel(l);
+      if (now - started < VAD.calibrateMs) {
+        noise = Math.max(noise, l);
+      } else {
+        const threshold = Math.max(VAD.minThreshold, noise * VAD.floorMultiplier);
+        if (l > threshold) {
+          lastVoice = now;
+          voicedSince ??= now;
+          if (!speech && now - voicedSince > VAD.speechConfirmMs) speech = true;
+        } else {
+          voicedSince = null;
+        }
+        if (speech && now - lastVoice > VAD.endSilenceMs) return void finishListening(true);
+        if (!speech && now - started > VAD.noSpeechTimeoutMs) return void finishListening(false);
+        if (now - started > VAD.maxTurnMs) return void finishListening(true);
+      }
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+  }
+
+  async function finishListening(send: boolean) {
+    if (stopping.current) return;
+    stopping.current = true;
+    stopMeter();
     const rec = recorder.current;
     recorder.current = null;
     if (!rec) return;
     const secs = rec.seconds();
     const wav = await rec.stop();
-    if (secs < 0.4) {
+    if (!send || secs < 0.5) {
+      setConversing(false);
       setPhase("idle");
+      setNotice(send ? null : "I didn't hear anything — tap the mic and speak.");
       return;
     }
     setPhase("thinking");
     try {
-      const r = await sendVoiceTurn(sessionId, wav, { ttsModel, languageHint: null });
+      const r = await sendVoiceTurn(sessionId, wav, { ttsModel, languageHint: lang === "en-IN" ? null : lang });
       if (r.fell_back_to_text) {
+        setConversing(false);
         setTyping(true);
         applyTurn(r, null, r.language);
         setPhase("idle");
         return;
       }
-      if (r.language) setLang(r.language);
-      const id = applyTurn(r, r.transcript || "…", r.language);
-      await say(r.spoken_text, r.language, id);
+      if (r.language && r.language !== lang) setLang(r.language);
+      applyTurn(r, r.transcript || "…", r.language);
+      await say(r.spoken_text, r.language);
+      const needsTap = r.status === "awaiting_confirmation" || (r.payment && r.payment.status === "AWAITING_PAYMENT");
+      if (conversing.current && handsFree && !needsTap) {
+        await startListening();
+      } else {
+        setConversing(false);
+        setPhase("idle");
+      }
     } catch (e) {
+      setConversing(false);
       setError(e instanceof Error ? e.message : String(e));
       setPhase("idle");
     }
   }
 
-  // ------------------------------------------------------------ live conversation (realtime)
-
-  async function startLive() {
-    setError(null);
-    const token = getToken();
-    if (!token) return;
-    const socket = new WebSocket(voiceStreamUrl({ token, session_id: sessionId, tts_model: ttsModel }));
-    socket.binaryType = "arraybuffer";
-    ws.current = socket;
-    socket.onmessage = async (ev) => {
-      const msg = JSON.parse(ev.data as string);
-      if (msg.type === "ready") setPhase("listening");
-      else if (msg.type === "processing") setPhase("thinking");
-      else if (msg.type === "fallback") {
-        setError(msg.message);
-        stopLive();
-        setTyping(true);
-      } else if (msg.type === "error") setError(msg.message);
-      else if (msg.type === "turn") {
-        const r = msg as VoiceTurn;
-        if (!r.transcript) {
-          setPhase("listening");
-          return;
-        }
-        if (r.language) setLang(r.language);
-        const id = applyTurn(r, r.transcript, r.language);
-        await say(r.spoken_text, r.language, id);
-      }
-    };
-    socket.onclose = () => {
-      ws.current = null;
-      recorder.current?.stop();
+  function endConversation() {
+    setConversing(false);
+    player.current?.stop();
+    if (recorder.current) {
+      stopping.current = true;
+      stopMeter();
+      recorder.current.stop();
       recorder.current = null;
-      setPhase("idle");
-    };
-    try {
-      const rec = new MicRecorder(setLevel, (pcm) => {
-        if (!muted.current && socket.readyState === WebSocket.OPEN) socket.send(pcm.buffer);
-      });
-      await rec.start();
-      recorder.current = rec;
-    } catch {
-      setError("Microphone permission is needed for voice.");
-      socket.close();
     }
-  }
-
-  function stopLive() {
-    try {
-      ws.current?.send(JSON.stringify({ type: "stop" }));
-    } catch {
-      // closed already
-    }
-    ws.current?.close();
-    ws.current = null;
-    recorder.current?.stop();
-    recorder.current = null;
     setPhase("idle");
   }
 
   function onMic() {
-    if (mode === "live") {
-      if (ws.current) stopLive();
-      else startLive();
-      return;
-    }
-    if (phase === "listening") stopPtt();
-    else if (phase === "idle") startPtt();
-    else if (phase === "speaking") {
-      player.current?.stop();
-      setPhase("idle");
+    if (phase === "listening") return void finishListening(true); // manual stop → send now
+    if (phase === "speaking") return endConversation();
+    if (phase === "idle") {
+      setConversing(true);
+      startListening();
     }
   }
 
@@ -306,10 +382,11 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     setError(null);
     try {
       const r = await sendAgentMessage(sessionId, msg, null, lang);
-      const id = applyTurn(r, msg, lang);
-      await say(r.reply, lang, id);
+      applyTurn(r as AnyTurn, msg, lang);
+      await say(r.reply, lang);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
       setPhase("idle");
     }
   }
@@ -318,10 +395,10 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     setPhase("thinking");
     try {
       const r = await confirmPendingAction(sessionId, approve);
-      applyTurn(r, null, lang);
-      setPhase("idle");
+      applyTurn(r as AnyTurn, null, lang);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
       setPhase("idle");
     }
   }
@@ -329,14 +406,19 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
   function onPaid(r: PaymentResult) {
     setTurns((ts) => [
       ...ts,
-      { id: crypto.randomUUID(), role: "assistant", text: r.status === "PAID" ? `${t("orderPlaced")} · #${r.order_id}` : `${t("codPlaced")} · #${r.order_id}`, language: lang },
+      {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: r.status === "PAID" ? `${t("orderPlaced")} · #${r.order_id}` : `${t("codPlaced")} · #${r.order_id}`,
+        language: lang,
+      },
     ]);
     setPending(null);
     onPaidOuter?.();
   }
 
   function newChat() {
-    stopLive();
+    endConversation();
     setSessionId(startNewSessionId());
     setTurns([]);
     setPending(null);
@@ -345,86 +427,96 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
   // ------------------------------------------------------------ render
 
   const stateLabel =
-    phase === "listening" ? (mode === "ptt" ? t("tapToStop") : t("listening")) : phase === "thinking" ? t("thinking") : phase === "speaking" ? t("speaking") : t("tapToSpeak");
-  const live = mode === "live" && !!ws.current;
+    phase === "listening" ? t("listening") : phase === "thinking" ? t("thinking") : phase === "speaking" ? t("speaking") : t("tapToSpeak");
+  const bars = Array.from({ length: 24 });
 
   return (
-    <section className="gnani-hero overflow-hidden rounded-[20px] border border-line shadow-elevated">
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,420px)_1fr]">
-        {/* Left: the mic */}
-        <div className="flex flex-col items-center justify-between gap-6 border-b border-line p-8 lg:border-b-0 lg:border-r">
-          <div className="w-full text-center lg:text-left">
-            <Badge variant="voice" className="mb-3">
-              <Radio size={12} className="mr-1" /> Powered by Gnani Vachana
-            </Badge>
-            <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{t("heroTitle")}</h1>
-            <p className="mt-2 text-sm leading-relaxed text-ink-soft">{t("heroSub")}</p>
+    <section className="band-night-fade">
+      <div className="mx-auto grid max-w-[1280px] gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,460px)_1fr] lg:py-16">
+        {/* Left: headline + mic */}
+        <div className="flex flex-col gap-8">
+          <div>
+            <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-[12px] font-medium text-white">
+              Powered by Gnani Vachana
+            </span>
+            <h1 className="display mt-5 text-[34px] text-white sm:text-[44px]">{t("heroTitle")}</h1>
+            <p className="mt-3 max-w-md text-[17px] leading-relaxed text-on-night-soft">{t("heroSub")}</p>
           </div>
 
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-6">
             <button
               onClick={onMic}
               disabled={phase === "thinking"}
               aria-label={stateLabel}
-              className={`relative flex h-32 w-32 items-center justify-center rounded-full text-white transition-transform duration-150 active:scale-95 disabled:opacity-70 ${
-                phase === "listening" || live ? "bg-voice voice-pulse" : phase === "speaking" ? "bg-accent" : "bg-voice shadow-voice hover:bg-voice-deep"
+              className={`relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-transform duration-150 active:scale-95 disabled:opacity-70 ${
+                phase === "listening" ? "voice-pulse" : ""
               }`}
             >
               <span
-                className="absolute inset-0 rounded-full bg-voice/25 transition-transform duration-75"
-                style={{ transform: `scale(${1 + level * 0.6})` }}
+                className="absolute inset-0 rounded-full bg-accent/30"
+                style={{ transform: `scale(${1 + level * 0.7})` }}
                 aria-hidden
               />
               {phase === "thinking" ? (
-                <Loader2 size={44} className="relative animate-spin" />
+                <Loader2 size={40} className="relative animate-spin" />
               ) : phase === "speaking" ? (
-                <Volume2 size={44} className="relative" />
-              ) : phase === "listening" || live ? (
-                <Square size={36} className="relative" fill="currentColor" />
+                <Volume2 size={40} className="relative" />
+              ) : phase === "listening" ? (
+                <Square size={30} className="relative" fill="currentColor" />
               ) : (
-                <Mic size={48} className="relative" />
+                <Mic size={44} className="relative" />
               )}
             </button>
-            <p className="min-h-5 text-sm font-medium text-ink">
-              {stateLabel}
-              {phase === "thinking" && (
-                <span className="ml-1 inline-flex gap-0.5">
-                  <span className="voice-dot">·</span>
-                  <span className="voice-dot [animation-delay:150ms]">·</span>
-                  <span className="voice-dot [animation-delay:300ms]">·</span>
-                </span>
-              )}
-            </p>
-
-            <div className="flex rounded-full border border-line bg-surface p-0.5 text-xs">
-              {(["ptt", "live"] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    if (ws.current) stopLive();
-                    setMode(m);
-                  }}
-                  className={`rounded-full px-3 py-1 font-medium transition ${mode === m ? "bg-ink text-white" : "text-ink-soft hover:text-ink"}`}
-                >
-                  {m === "ptt" ? t("pushToTalk") : t("realtime")}
-                </button>
-              ))}
+            <div className="min-w-0">
+              <p className="display text-[22px] text-white">
+                {stateLabel}
+                {phase === "thinking" && (
+                  <span className="ml-1">
+                    <span className="voice-dot">.</span>
+                    <span className="voice-dot [animation-delay:150ms]">.</span>
+                    <span className="voice-dot [animation-delay:300ms]">.</span>
+                  </span>
+                )}
+              </p>
+              <div className="mt-2 flex h-6 items-center gap-[3px]" aria-hidden>
+                {bars.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-[3px] rounded-full ${phase === "speaking" ? "speak-bar bg-link-night" : "bg-accent"}`}
+                    style={{
+                      height:
+                        phase === "listening"
+                          ? `${Math.max(3, Math.min(24, level * 60 * (0.4 + Math.abs(Math.sin(i * 1.7)))))}px`
+                          : phase === "speaking"
+                            ? "22px"
+                            : "3px",
+                      animationDelay: `${(i % 6) * 90}ms`,
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-[13px] text-on-night-faint">
+                {phase === "listening"
+                  ? "Stops by itself when you pause · click to send now"
+                  : handsFree
+                    ? "Hands-free: it listens again after each answer"
+                    : "One question at a time"}
+              </p>
             </div>
           </div>
 
-          {/* language chips: the 10 Gnani languages, in their own scripts */}
-          <div className="w-full">
-            <p className="mb-2 text-center text-[11px] font-medium uppercase tracking-wide text-ink-faint lg:text-left">
-              {t("language")} · auto-detected by Prisma v3.0
+          <div>
+            <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.6px] text-on-night-faint">
+              I&apos;m speaking — a hint for Gnani, which still auto-detects
             </p>
-            <div className="flex flex-wrap justify-center gap-1.5 lg:justify-start">
+            <div className="flex flex-wrap gap-2">
               {LANGUAGES.map((l) => (
                 <button
                   key={l.code}
                   onClick={() => setLang(l.code)}
                   title={l.english}
-                  className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                    lang === l.code ? "border-voice bg-voice-soft font-semibold text-voice-deep" : "border-line bg-surface text-ink-soft hover:border-line-strong"
+                  className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors ${
+                    lang === l.code ? "bg-white text-ink" : "bg-white/10 text-white hover:bg-white/20"
                   }`}
                 >
                   {l.native}
@@ -435,45 +527,66 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
         </div>
 
         {/* Right: the conversation */}
-        <div className="flex min-h-[460px] flex-col bg-surface/70">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-ink-faint">{t("voice")}</span>
+        <div className="flex min-h-[520px] flex-col overflow-hidden rounded-md bg-night-card">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-night-line px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-on-night-faint">
               <select
                 value={ttsModel}
                 onChange={(e) => {
                   setTtsModel(e.target.value);
                   if (e.target.value === "timbre-v3.0") setVoice("Shivani");
                 }}
-                className="rounded-md border border-line bg-surface px-2 py-1 text-xs"
+                className="h-8 rounded-full border border-night-line bg-night px-3 text-xs text-white"
               >
-                <option value="timbre-v3.0">Timbre v3.0 · 13 voices × 10 languages</option>
-                <option value="timbre-v2.5">Timbre v2.5 · 42 native voices</option>
+                <option value="timbre-v3.0">Timbre v3.0 · 13 voices</option>
+                <option value="timbre-v2.5">Timbre v2.5 · native voices</option>
               </select>
-              <select value={voice} onChange={(e) => setVoice(e.target.value)} className="rounded-md border border-line bg-surface px-2 py-1 text-xs">
+              <select
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+                className="h-8 rounded-full border border-night-line bg-night px-3 text-xs text-white"
+              >
                 {voicesForModel.map((v) => (
                   <option key={v.name} value={v.name}>
-                    {v.name} {v.gender ? `(${v.gender[0]})` : ""} {v.preferred_language ? `· ${nativeName(v.preferred_language) || "Hinglish"}` : ""}
+                    {v.name} {v.gender ? `· ${v.gender}` : ""}
                   </option>
                 ))}
               </select>
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-full border border-night-line px-3 py-1.5 text-white">
+                <input type="checkbox" checked={handsFree} onChange={(e) => setHandsFree(e.target.checked)} className="accent-[#0070d1]" />
+                Hands-free
+              </label>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setSpeak((s) => !s)} className="rounded-md p-1.5 text-ink-soft hover:bg-black/[0.04]" title={speak ? "Mute replies" : "Speak replies"}>
-                {speak ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              <button
+                onClick={() => setSpeak((s) => !s)}
+                className="rounded-full p-2 text-on-night-soft hover:text-white"
+                title={speak ? "Mute replies" : "Speak replies"}
+              >
+                {speak ? <Volume2 size={16} /> : <VolumeX size={16} />}
               </button>
-              <Button size="sm" variant="ghost" onClick={newChat}>
+              {(phase !== "idle" || conversingUi) && (
+                <Button size="sm" variant="night" onClick={endConversation}>
+                  End
+                </Button>
+              )}
+              <Button size="sm" variant="night" onClick={newChat}>
                 {t("newChat")}
               </Button>
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4" style={{ maxHeight: 420 }}>
+          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5" style={{ maxHeight: 460 }}>
             {turns.length === 0 && (
-              <div className="mx-auto mt-6 max-w-sm space-y-2 text-center text-sm text-ink-soft">
-                <p className="font-medium text-ink">Try saying</p>
-                {["2 किलो आटा और एक लीटर दूध चाहिए", "నాకు పాలు మరియు బ్రెడ్ కావాలి", "ஒரு டப்பா நெய் சேர்", "Add Maggi and a cold drink under ₹200"].map((s) => (
-                  <p key={s} className="rounded-full border border-line bg-surface px-3 py-1.5 text-ink">
+              <div className="mx-auto mt-4 max-w-sm space-y-2 text-center">
+                <p className="display text-[22px] text-white">Try saying</p>
+                {[
+                  "నాకు రెండు ఆట్టా ప్యాకెట్లు మరియు పాలు కావాలి",
+                  "do kilo atta aur ek litre doodh",
+                  "ஒரு டப்பா நெய் சேர்",
+                  "Add Maggi and a cold drink under ₹200",
+                ].map((s) => (
+                  <p key={s} className="rounded-full bg-white/[0.06] px-4 py-2 text-[14px] text-on-night-soft">
                     “{s}”
                   </p>
                 ))}
@@ -482,66 +595,81 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
             {turns.map((turn) => (
               <div key={turn.id} className={`flex flex-col ${turn.role === "user" ? "items-end" : "items-start"}`}>
                 <div
-                  className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                  className={`max-w-[88%] whitespace-pre-wrap rounded-md px-4 py-2.5 text-[15px] leading-relaxed ${
                     turn.role === "user"
-                      ? "rounded-br-sm bg-ink text-white"
+                      ? "bg-accent text-white"
                       : turn.blocked
-                        ? "rounded-bl-sm border border-warning/30 bg-warning-soft text-warning"
-                        : "rounded-bl-sm bg-black/[0.04] text-ink"
+                        ? "bg-[#3a2a08] text-[#ffce21]"
+                        : "bg-white/[0.07] text-white"
                   }`}
                 >
                   {turn.text}
                 </div>
-                <div className="mt-1 flex items-center gap-2 px-0.5 text-[11px] text-ink-faint">
+                <div className="mt-1 flex flex-wrap items-center gap-2 px-0.5 text-[11px] text-on-night-faint">
                   {turn.role === "user" ? t("youSaid") : "Gnani Shop"}
-                  {turn.language && <span className="rounded-full bg-voice-soft px-1.5 text-voice-deep">{nativeName(turn.language)}</span>}
+                  {turn.language && <span className="rounded-full bg-white/10 px-2 py-0.5 text-white">{nativeName(turn.language)}</span>}
                   {turn.role === "assistant" && turn.spoken && (
-                    <button className="hover:text-ink" onClick={() => say(turn.spoken!, turn.language ?? null)} title="Play again">
+                    <button
+                      className="hover:text-white"
+                      onClick={() => say(turn.spoken!, turn.language ?? null).then(() => setPhase("idle"))}
+                      title="Play again"
+                    >
                       <Volume2 size={12} />
                     </button>
                   )}
-                  {turn.meta && (
-                    <button className="inline-flex items-center gap-0.5 hover:text-ink" onClick={() => setOpenMeta(openMeta === turn.id ? null : turn.id)}>
-                      {t("underTheHood")} <ChevronDown size={11} className={openMeta === turn.id ? "rotate-180" : ""} />
+                  {(turn.steps?.length || turn.meta) && (
+                    <button
+                      className="inline-flex items-center gap-0.5 hover:text-white"
+                      onClick={() => setOpenSteps(openSteps === turn.id ? null : turn.id)}
+                    >
+                      Harness loop
+                      {turn.steps?.length ? ` · ${turn.steps.filter((s) => s.type !== "model_call").length} steps` : ""}
+                      <ChevronDown size={11} className={openSteps === turn.id ? "rotate-180" : ""} />
                     </button>
                   )}
                 </div>
-                {turn.meta && openMeta === turn.id && (
-                  <dl className="mt-1 grid max-w-[88%] grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-line bg-surface px-3 py-2 font-mono text-[11px]">
-                    {Object.entries(turn.meta).map(([k, v]) => (
-                      <div key={k} className="contents">
-                        <dt className="text-ink-faint">{k}</dt>
-                        <dd className="text-ink">{String(v ?? "—")}</dd>
-                      </div>
-                    ))}
-                  </dl>
+                {openSteps === turn.id && (turn.steps?.length || turn.meta) && (
+                  <div className="mt-1 w-full max-w-[88%] rounded-md bg-night px-3 py-2.5">
+                    {turn.meta && (
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-[11px] sm:grid-cols-3">
+                        {Object.entries(turn.meta).map(([k, v]) => (
+                          <div key={k}>
+                            <dt className="inline text-on-night-faint">{k}: </dt>
+                            <dd className="inline text-white">{String(v ?? "—")}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    {turn.steps && turn.steps.length > 0 && <StepList steps={turn.steps} />}
+                  </div>
                 )}
               </div>
             ))}
           </div>
 
           {pending && (
-            <div className="mx-4 mb-3 rounded-lg border border-warning/30 bg-warning-soft p-3">
-              <p className="flex items-center gap-1.5 text-sm font-medium text-warning">
-                <ShieldCheck size={15} /> {t("needsTap")}
+            <div className="mx-4 mb-3 rounded-md bg-[#3a2a08] p-4">
+              <p className="flex items-center gap-1.5 text-[15px] font-semibold text-[#ffce21]">
+                <ShieldCheck size={16} /> {t("needsTap")}
               </p>
-              <p className="mt-1 text-xs text-ink-soft">
-                {pending.reason} <span className="font-mono">({pending.rule_name})</span>
+              <p className="mt-1 text-[13px] text-on-night-soft">
+                {pending.reason} <span className="font-mono text-on-night-faint">({pending.rule_name})</span>
               </p>
-              <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="primary" onClick={() => decide(true)}>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="commerce" onClick={() => decide(true)}>
                   {t("confirm")}
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => decide(false)}>
+                <Button size="sm" variant="night" onClick={() => decide(false)}>
                   {t("decline")}
                 </Button>
               </div>
             </div>
           )}
 
-          {error && <p className="mx-4 mb-3 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">{error}</p>}
+          {notice && <p className="mx-4 mb-3 rounded-md bg-white/[0.06] px-3 py-2 text-xs text-on-night-soft">{notice}</p>}
+          {error && <p className="mx-4 mb-3 rounded-md bg-[#3a0d16] px-3 py-2 text-xs text-[#ff8a8a]">{error}</p>}
 
-          <div className="border-t border-line p-3">
+          <div className="border-t border-night-line p-3">
             {typing ? (
               <form
                 className="flex gap-2"
@@ -554,14 +682,14 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="2 kg atta, 1 litre milk…"
-                  className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+                  className="h-11 flex-1 rounded-full border border-night-line bg-night px-4 text-sm text-white outline-none placeholder:text-on-night-faint focus:border-accent"
                 />
                 <Button type="submit" variant="primary" disabled={phase === "thinking" || !text.trim()}>
                   <Send size={14} /> {t("send")}
                 </Button>
               </form>
             ) : (
-              <button onClick={() => setTyping(true)} className="inline-flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink">
+              <button onClick={() => setTyping(true)} className="inline-flex items-center gap-1.5 px-1 text-xs text-on-night-faint hover:text-white">
                 <Keyboard size={14} /> {t("typeInstead")}
               </button>
             )}
@@ -569,15 +697,7 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
         </div>
       </div>
 
-      {payment && (
-        <PaymentSheet
-          payment={payment}
-          onClose={() => setPayment(null)}
-          onDone={(r) => {
-            onPaid(r);
-          }}
-        />
-      )}
+      {payment && <PaymentSheet payment={payment} onClose={() => setPayment(null)} onDone={onPaid} />}
     </section>
   );
 }

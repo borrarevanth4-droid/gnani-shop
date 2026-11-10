@@ -27,6 +27,7 @@ from app.core.logging import logger
 from app.repositories import agent_session_repo
 from app.voice import spoken
 from app.voice.gateway import SttResult, VoiceGatewayError, voice_gateway
+from app.voice.hints import stt_language_code
 from app.voice.keyterms import build_keyterms
 from app.voice.languages import TIMBRE_V3, normalize
 from app.voice.policy import HeardUtterance, default_voice_policy
@@ -56,6 +57,7 @@ class VoiceTurnResult:
     upsell: dict | None = None
     product_suggestion: dict | None = None
     stt: dict = field(default_factory=dict)
+    steps: list = field(default_factory=list)
     fell_back_to_text: bool = False
     error: str | None = None
 
@@ -108,7 +110,7 @@ def run_voice_turn(
     try:
         stt = voice_gateway.transcribe(
             audio,
-            language=language_hint or settings.gnani_stt_language,
+            language=stt_language_code(language_hint),
             keyterms=build_keyterms(db),
             topic=STT_TOPIC,
             previous_text=_previous_text(db, session_id),
@@ -243,6 +245,7 @@ def act_on_transcript(
         upsell=result.upsell,
         product_suggestion=result.product_suggestion,
         stt=stt_info,
+        steps=result.steps,
     )
 
 

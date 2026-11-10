@@ -76,6 +76,29 @@ Found live on a Tamil voice turn in Docker ("one litre of milk"). **Fix:** a par
 case, plus a test that every tool schema the model is offered has one
 (`test_every_tool_schema_has_a_parser_case`).
 
+### 12. Short Telugu words were heard as Malayalam
+With pure `indic-auto`, "పాలు" (milk) and "ఉప్పు" (salt) came back as Malayalam
+"പാലും" / "ഉപ്പ്" — a few syllables are not much to identify a language from.
+**Fix:** Prisma v3.0 accepts 1–4 language codes as *hints* (not a lock), so the
+buyer's chosen language is sent first plus English (`te-IN,en-IN`), which also
+covers code-mixed speech (Tinglish/Hinglish). Measured live: both words then
+transcribed correctly in Telugu; with no chosen language we still use
+`indic-auto` (`app/voice/hints.py`).
+
+### 13. First syllable clipped
+A clip that starts the instant speech starts lost its first consonant
+("పాలు" → "ఆలు"). **Fix:** 0.3 s of silence is prepended before sending to
+Prisma (`pad_leading_silence`); reported audio length excludes it.
+
+### 14. One provider's rate limit stalled every turn
+Benchmarked on our own Telugu / Tinglish / Hindi prompts: Groq `gpt-oss-120b`
+was the most accurate and fastest (0.5–1.4 s per step); of the NVIDIA models
+this key can reach, only `nemotron-3.5-lightning` answered tool calls in time
+(~5 s), several others returned 404 or timed out. **Fix:** the fallback model
+can live on a different provider (`LLM_FALLBACK_PROVIDER=nvidia`), and a 429
+with a long wait now hands the turn to the fallback immediately instead of
+sleeping.
+
 ## Decisions
 
 - **No card gateway.** Demo wallet + Cash on Delivery behind a provider slot.

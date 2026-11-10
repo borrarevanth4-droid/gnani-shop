@@ -18,8 +18,8 @@ export default function CartSidebar({ cart, onRemove, removingId, onBuyNow, buyi
   const hasItems = !!cart && cart.items.length > 0;
 
   return (
-    <aside className="flex h-fit flex-col gap-3 rounded-lg border border-line bg-surface p-4 lg:sticky lg:top-[4.5rem]">
-      <h2 className="text-sm font-semibold tracking-tight text-ink">{t("cart")}</h2>
+    <aside className="flex h-fit flex-col gap-4 rounded-md bg-surface-card p-6 lg:sticky lg:top-[4.5rem]">
+      <h2 className="display text-[22px] text-ink">{t("cart")}</h2>
 
       {!hasItems ? (
         <div className="flex flex-col items-center gap-1.5 py-6 text-center">
@@ -52,13 +52,13 @@ export default function CartSidebar({ cart, onRemove, removingId, onBuyNow, buyi
         </ul>
       )}
 
-      <div className="flex items-center justify-between border-t border-line pt-3 text-sm font-semibold text-ink">
+      <div className="flex items-center justify-between border-t border-line-strong/50 pt-4 text-[17px] font-semibold text-ink">
         <span>{t("total")}</span>
         <span className="font-mono tabular-nums">{cart?.total_display ?? "₹0.00"}</span>
       </div>
 
       {hasItems && (
-        <Button variant="primary" onClick={onBuyNow} disabled={buyingNow} className="w-full">
+        <Button variant="commerce" size="lg" onClick={onBuyNow} disabled={buyingNow} className="w-full">
           {buyingNow ? "…" : t("buyNow")}
         </Button>
       )}

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Empty = the provider's default below (see _default_models()).
     llm_model: str = ""
     llm_fallback: str = ""
+    # Optional: run the fallback model on a DIFFERENT provider ("groq" or
+    # "nvidia"). Empty = same provider as LLM_PROVIDER.
+    llm_fallback_provider: str = ""
     llm_timeout_seconds: float = 30.0
     llm_max_retries: int = 2
     llm_retry_backoff_seconds: float = 1.0

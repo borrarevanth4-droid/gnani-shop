@@ -53,28 +53,50 @@ _PROVIDERS: dict[str, dict[str, str]] = {
     "nvidia": {
         "base_url": settings.nvidia_base_url,
         "api_key": settings.nvidia_api_key,
-        "primary": "openai/gpt-oss-120b",
+        # NVIDIA retired openai/gpt-oss-120b on 2026-09-03; Nemotron is the
+        # primary there. Check https://integrate.api.nvidia.com/v1/models if
+        # a call ever fails with "model not found" — NIM's catalog changes.
+        "primary": "nvidia/nemotron-3.5-lightning-30b-a3b",
         "fallback": "openai/gpt-oss-20b",
     },
 }
 
 
-def provider_config() -> dict[str, str]:
-    name = (settings.llm_provider or "groq").strip().lower()
+def _provider(name: str) -> dict[str, str]:
+    name = (name or "groq").strip().lower()
     if name not in _PROVIDERS:
-        raise ValueError(f"Unknown LLM_PROVIDER '{name}'. Use one of: {', '.join(_PROVIDERS)}.")
+        raise ValueError(f"Unknown LLM provider '{name}'. Use one of: {', '.join(_PROVIDERS)}.")
     cfg = dict(_PROVIDERS[name])
     cfg["name"] = name
-    cfg["primary"] = settings.llm_model or cfg["primary"]
-    cfg["fallback"] = settings.llm_fallback or cfg["fallback"]
     return cfg
 
 
-def make_model(model_id: str, *, timeout_seconds: float | None = None) -> OpenAILike:
-    """One OpenAI-compatible model handle for the configured provider. Also
-    used by the cosmetic/low-stakes callers (titles, demand extraction,
-    campaign copy) so there is exactly one place that knows about providers."""
-    cfg = provider_config()
+def provider_config() -> dict[str, str]:
+    """Primary and fallback can live on DIFFERENT providers
+    (LLM_FALLBACK_PROVIDER). Measured on this project's own multilingual
+    prompts, Groq's gpt-oss-120b was the most accurate and fastest (0.5–1.4 s)
+    but its free tier is limited to 8,000 tokens/minute; NVIDIA's Nemotron
+    3.5 Lightning was slower (~5 s) but on a separate quota. Pairing them means
+    a rate-limited turn moves to the other provider instead of waiting."""
+    primary = _provider(settings.llm_provider)
+    fallback = _provider(settings.llm_fallback_provider or settings.llm_provider)
+    return {
+        "name": primary["name"],
+        "base_url": primary["base_url"],
+        "api_key": primary["api_key"],
+        "primary": settings.llm_model or primary["primary"],
+        "fallback_provider": fallback["name"],
+        "fallback": settings.llm_fallback or (
+            fallback["primary"] if fallback["name"] != primary["name"] else primary["fallback"]
+        ),
+    }
+
+
+def make_model(model_id: str, *, timeout_seconds: float | None = None, provider: str | None = None) -> OpenAILike:
+    """One OpenAI-compatible model handle. Also used by the cosmetic/low-stakes
+    callers (titles, demand extraction, campaign copy) so there is exactly one
+    place that knows about providers."""
+    cfg = _provider(provider or settings.llm_provider)
     return OpenAILike(
         id=model_id,
         name=f"{cfg['name']}:{model_id}",
@@ -84,7 +106,8 @@ def make_model(model_id: str, *, timeout_seconds: float | None = None) -> OpenAI
         timeout=timeout_seconds or settings.llm_timeout_seconds,
         max_retries=0,
         # gpt-oss is a reasoning model; "low" keeps tool-calling turns fast.
-        reasoning_effort="low",
+        # Other models may reject the parameter, so it is sent only to gpt-oss.
+        reasoning_effort="low" if "gpt-oss" in model_id else None,
     )
 
 
@@ -198,7 +221,8 @@ class LLMGateway:
         self._max_retries = max_retries
         self._backoff_base = backoff_base_seconds
         self._primary = make_model(primary_model_id, timeout_seconds=timeout_seconds)
-        self._fallback = make_model(fallback_model_id, timeout_seconds=timeout_seconds)
+        self._fallback = make_model(fallback_model_id, timeout_seconds=timeout_seconds,
+                                    provider=provider_config()["fallback_provider"])
         self._primary_breaker = CircuitBreaker(circuit_breaker_failure_threshold, circuit_breaker_cooldown_seconds)
         self._fallback_breaker = CircuitBreaker(circuit_breaker_failure_threshold, circuit_breaker_cooldown_seconds)
 
@@ -289,7 +313,13 @@ class LLMGateway:
                 )
                 if not retryable or attempt >= max_attempts:
                     raise GatewayError(str(e)) from e
-                time.sleep(max(self._backoff_base * (2 ** (attempt - 1)), _retry_after_seconds(e)))
+                wait = max(self._backoff_base * (2 ** (attempt - 1)), _retry_after_seconds(e))
+                if e.status_code == 429 and wait > 3.0 and not fallback_used:
+                    # Rate-limited for a while: hand the turn to the fallback
+                    # (possibly another provider) now rather than make the
+                    # buyer wait for this provider's quota to refill.
+                    raise GatewayError(f"rate limited for {wait:.1f}s on {model.id}") from e
+                time.sleep(wait)
                 continue
 
             latency_ms = int((time.monotonic() - start) * 1000)

@@ -16,9 +16,9 @@ const TONE_STYLES: Record<NonNullable<Props["tone"]>, string> = {
 
 export default function MetricCard({ label, value, meta, tone = "default" }: Props) {
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface p-4">
+    <div className="flex flex-col gap-2 rounded-md bg-surface-card p-5">
       <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">{label}</span>
-      <span className={`font-mono text-2xl font-semibold tabular-nums leading-none ${TONE_STYLES[tone]}`}>{value}</span>
+      <span className={`display text-3xl tabular-nums leading-none ${TONE_STYLES[tone]}`}>{value}</span>
       {meta && <span className="text-xs text-ink-soft">{meta}</span>}
     </div>
   );

@@ -104,6 +104,28 @@ def _wav_seconds(audio: bytes) -> float | None:
         return None
 
 
+def pad_leading_silence(audio: bytes, seconds: float = 0.3) -> bytes:
+    """Prepends silence to a 16-bit PCM WAV. A clip that starts the instant
+    the speaker does can lose its first consonant ("పాలు" heard as "ఆలు");
+    a short lead-in gives Prisma's voice-activity detection room to start.
+    Anything that isn't a plain PCM WAV is returned unchanged."""
+    try:
+        if audio[:4] != b"RIFF" or audio[8:12] != b"WAVE":
+            return audio
+        byte_rate = int.from_bytes(audio[28:32], "little")
+        block_align = int.from_bytes(audio[32:34], "little") or 2
+        data_idx = audio.find(b"data", 12)
+        if byte_rate <= 0 or data_idx < 0:
+            return audio
+        pad = b"\x00" * (int(byte_rate * seconds) // block_align * block_align)
+        data_len = int.from_bytes(audio[data_idx + 4 : data_idx + 8], "little") + len(pad)
+        riff_len = int.from_bytes(audio[4:8], "little") + len(pad)
+        return (audio[:4] + riff_len.to_bytes(4, "little") + audio[8:data_idx + 4] + data_len.to_bytes(4, "little")
+                + pad + audio[data_idx + 8:])
+    except Exception:  # noqa: BLE001
+        return audio
+
+
 def _error_from_response(resp: httpx.Response) -> VoiceGatewayError:
     status = resp.status_code
     code = None
@@ -198,6 +220,8 @@ class VoiceGateway:
         """Prisma REST transcription (clips up to 30 s)."""
         model = model or settings.gnani_stt_model
         fmt = fmt or settings.gnani_stt_format
+        spoken_seconds = _wav_seconds(audio)  # the buyer's real audio, before padding
+        audio = pad_leading_silence(audio)
         language = language or settings.gnani_stt_language
         data: dict[str, str] = {"model": model, "language_code": language, "format": fmt}
         if model == "prisma-v3.0":
@@ -226,7 +250,7 @@ class VoiceGateway:
                     raise _error_from_response(resp)
                 body = resp.json()
             latency_ms = int((time.monotonic() - start) * 1000)
-            seconds = _wav_seconds(audio)
+            seconds = spoken_seconds
             cost = round(seconds * settings.gnani_cost_paise_per_audio_second) if seconds is not None else None
             return SttResult(
                 transcript=(body.get("transcript") or "").strip(),
