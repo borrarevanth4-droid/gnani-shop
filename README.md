@@ -388,7 +388,7 @@ example ngrok, with `NGROK_AUTHTOKEN` in `.env`) and open the HTTPS link on your
 
 | What | Command (from the `backend` folder unless noted) | Latest result |
 |---|---|---|
-| All automated tests (Gnani and AI mocked) | `..\venv\Scripts\python -m pytest -q` | **474 passed** |
+| All automated tests (Gnani and AI mocked) | `..\venv\Scripts\python -m pytest -q` | **539 passed** |
 | Order understanding in 10 languages | included above (`tests/test_fast_path_languages.py`) | **46/46** orders understood; **26/26** remove / question / pay sentences never read as "add" |
 | Live voice conversations — real Gnani audio in all 10 languages | `venv\Scripts\python eval/voice_journey.py` (from the main folder) | **15/15** conversations perfect, 45/45 replies spoken completely in the right language |
 | Safety evaluation (rulebook) | `python eval/run.py --stub` (from the main folder) | 41/41 scenarios, 0 false positives / negatives (last recorded run) |
