@@ -333,10 +333,37 @@ This starts **both** the backend and the frontend. Wait until you see
 |---|---|
 | The mic does nothing / "Microphone permission is needed" | Click the 🔒 icon in the address bar → allow Microphone → reload. The mic only works on `127.0.0.1`, `localhost` or HTTPS |
 | "Could not reach the API … Is the backend running?" | The backend isn't up. Stop with Ctrl + C and run `npm run app` again; read the first error it prints |
+| Google: "redirect_uri_mismatch" | The address you opened isn't registered. Add `http://<that address>/api/auth/google/callback` under **Authorized redirect URIs**, or open the app on the registered address |
+| Google: "Access blocked … has not completed the Google verification process" | Add your Google account under **Test users** on the consent screen |
 | `EADDRINUSE: address already in use :::3000` (or 8842) | An old copy is still running. Close it, or restart your computer, then start again |
 | The assistant says "please type" | `GNANI_API_KEY` is missing or wrong in `.env` |
 | Replies are slow | Your AI provider's free tier is rate-limited. Simple orders still work instantly; add `NVIDIA_API_KEY` and `LLM_FALLBACK_PROVIDER=nvidia` for a backup |
 | `pip` or `python` not found (Windows) | Re-install Python with **"Add Python to PATH"** ticked |
+
+### Optional: sign in with Google
+
+The demo accounts work without this. To let people sign in with their own Google account:
+
+1. Open https://console.cloud.google.com and create a project (top bar → **New project**, name it `gnani-shop`).
+2. Go to **APIs & Services → OAuth consent screen** (may be called **Google Auth Platform → Branding**).
+   Choose **External**, enter an app name (`Gnani Shop`) and your email, and save.
+   Under **Audience / Test users**, add the Google accounts that may sign in while the app is in testing.
+3. Go to **APIs & Services → Credentials → Create credentials → OAuth client ID**.
+   - Application type: **Web application**
+   - **Authorized redirect URIs** → add: `http://localhost:3000/api/auth/google/callback`
+     (also add `http://127.0.0.1:3000/api/auth/google/callback` if you open the app on 127.0.0.1)
+   - Click **Create** and copy the **Client ID** and **Client secret**.
+4. Put them in `.env`:
+   ```ini
+   GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=xxxxxxxx
+   MERCHANT_EMAILS=you@gmail.com   # optional: these accounts get the shop-owner view
+   ```
+5. Restart (`Ctrl + C`, then `npm run app`), open **http://localhost:3000/login** and click
+   **Sign in with Google**.
+
+Open the app on the same address you registered: if you registered only `localhost`, use
+`localhost:3000`. New Google users start as buyers with a demo wallet.
 
 ### Alternative: run with Docker
 
@@ -401,7 +428,7 @@ gnani-shop/
 | `LLM_PROVIDER` + `GROQ_API_KEY` / `NVIDIA_API_KEY` | For the AI assistant | Simple orders, browsing and buying still work |
 | `JWT_SECRET_KEY` | **Yes — always set it** | Logins still work but are signed with an empty secret, so anyone could forge one |
 | `APP_ENV=development` | For demo logins | Demo accounts are disabled |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional | Use the demo accounts |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional ([setup](#optional-sign-in-with-google)) | Use the demo accounts |
 | `DATABASE_URL` | Optional | SQLite file `backend/gnani_shop.db` |
 
 ### More documentation

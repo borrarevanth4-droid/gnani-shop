@@ -6,7 +6,7 @@ pre-issued key on every call instead (app/auth/principal.py), which is the
 whole point of agent principals's principal split — see docs/ARCHITECTURE.md.
 """
 
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
@@ -54,19 +54,51 @@ def _readable_oauth_error(e: Exception) -> str:
     return "Sign-in failed unexpectedly. Please try again — if this keeps happening, contact support."
 
 
+def _browser_origin(request: Request) -> str | None:
+    """The address the buyer's browser is actually on, when the request came
+    through the frontend's /api proxy (Next.js sets X-Forwarded-Host to the
+    browser's host, e.g. "localhost:3000"). None when the backend was called
+    directly. Only local addresses, the configured FRONTEND_URL and HTTPS
+    tunnels are accepted, so a forged header can't point sign-in elsewhere."""
+    host = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+    if not host:
+        return None
+    proto = (request.headers.get("x-forwarded-proto") or "http").split(",")[0].strip().lower()
+    if proto not in ("http", "https"):
+        return None
+    origin = f"{proto}://{host}"
+    hostname = urlsplit(origin).hostname or ""
+    if (
+        origin.rstrip("/") == settings.frontend_url.rstrip("/")
+        or hostname in ("localhost", "127.0.0.1")
+        or (proto == "https" and hostname.endswith((".ngrok-free.app", ".ngrok.app", ".ngrok.io")))
+    ):
+        return origin
+    return None
+
+
 @router.get("/api/auth/google/login")
 @public
 async def google_login(request: Request):
-    # Derived from the incoming request rather than settings.google_redirect_uri
-    # fixed to one host: this is what makes the round trip work whether this
-    # endpoint was reached via localhost:8842 or 127.0.0.1:8842. The
-    # SessionMiddleware cookie that carries the CSRF state below is
-    # host-scoped, so login and callback MUST share a host for the state
-    # check to ever pass — see docs/ARCHITECTURE.md and the
-    # MismatchingStateError this replaced. Both exact host variants need to
-    # be registered as "Authorized redirect URIs" on the Google OAuth
-    # client for this to work from either.
-    redirect_uri = str(request.url_for("google_callback"))
+    if not (settings.google_client_id and settings.google_client_secret):
+        message = ("Google sign-in isn't set up yet: add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env "
+                   "and restart. You can use the demo accounts meanwhile.")
+        origin = _browser_origin(request) or settings.frontend_url
+        return RedirectResponse(url=f"{origin}/login?error={quote(message)}")
+    # The whole round trip goes through the SAME address the browser is on:
+    # the cookie that carries the CSRF state is per host, so if the buyer
+    # starts on localhost:3000, Google must send them back to localhost:3000
+    # (not 127.0.0.1:8842) or the state check fails. Through the frontend
+    # proxy that address is the browser's; called directly, it's this
+    # server's own. Every address used must be registered as an "Authorized
+    # redirect URI" on the Google OAuth client (see README).
+    origin = _browser_origin(request)
+    if origin:
+        redirect_uri = f"{origin}/api/auth/google/callback"
+        request.session["oauth_return_origin"] = origin  # signed cookie: can't be forged
+    else:
+        redirect_uri = str(request.url_for("google_callback"))
+        request.session.pop("oauth_return_origin", None)
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -74,7 +106,9 @@ async def google_login(request: Request):
 @public
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     request_id = getattr(request.state, "request_id", None)
-    frontend_origin = settings.frontend_url
+    # Back to the address the buyer started on (saved in the signed session
+    # at login), so the token is stored where they are actually browsing.
+    frontend_origin = request.session.pop("oauth_return_origin", None) or settings.frontend_url
     email: str | None = None
 
     try:

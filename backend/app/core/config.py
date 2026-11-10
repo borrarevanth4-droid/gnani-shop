@@ -159,16 +159,12 @@ class Settings(BaseSettings):
     # --- agent principals: principals (buyer/merchant Google OAuth, agent credentials) ---
     google_client_id: str = ""
     google_client_secret: str = ""
-    # NOT read by app/auth/oauth_router.py — the actual redirect_uri sent to
-    # Google is derived per-request from request.url_for(), specifically so
-    # the OAuth flow works whether the backend is reached via localhost:8842
-    # or 127.0.0.1:8842 (the SessionMiddleware cookie carrying the CSRF
-    # state is host-scoped, so login and callback must share a host, but
-    # that host doesn't have to be fixed in advance). Kept as a documentation
-    # default: register THIS value, and any other host/port you'll actually
-    # use, as separate "Authorized redirect URIs" on the Google OAuth
-    # client — Google allows more than one. See docs/ARCHITECTURE.md.
-    google_redirect_uri: str = "http://localhost:8842/api/auth/google/callback"
+    # NOT read by app/auth/oauth_router.py — the redirect_uri sent to Google is
+    # the address the browser is actually on (through the frontend's /api
+    # proxy), so sign-in works from localhost:3000, 127.0.0.1:3000 or an HTTPS
+    # tunnel. Register each address you use as an "Authorized redirect URI"
+    # on the Google OAuth client. Kept as a documentation default.
+    google_redirect_uri: str = "http://localhost:3000/api/auth/google/callback"
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expires_minutes: int = 60 * 24 * 7  # 7 days — a demo session, not a production-grade lifetime
