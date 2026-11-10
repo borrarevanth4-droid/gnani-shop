@@ -336,6 +336,30 @@ def initiate_payment(db: Session, user_id: str, session_id: str) -> dict:
     }
 
 
+def list_orders(db: Session, user_id: str) -> dict:
+    """The buyer's own recent orders, newest first (read-only)."""
+    from app.orders import repository as order_repo
+
+    orders = order_repo.list_by_user(db, user_id, limit=5)
+    out = []
+    for o in orders:
+        cart = cart_repo.get_by_id(db, o.cart_id)
+        out.append({
+            "order_id": o.id,
+            "status": o.status,
+            "payment_method": o.payment_method,
+            "amount_paise": o.amount_paise,
+            "placed_at": o.created_at.date().isoformat(),
+            "items": [{"sku": i.product.sku, "name": i.product.name, "quantity": i.quantity}
+                      for i in (cart.items if cart else [])],
+        })
+    return {"orders": out, "count": len(out)}
+
+
+def wallet_balance(db: Session, user_id: str) -> dict:
+    return {"balance_paise": wallet_service.balance_paise(db, user_id)}
+
+
 # Uniform dispatch signature: fn(db, user_id, session_id, **arguments) -> dict.
 # Tools that don't need user_id/session_id still accept them for a uniform call site.
 TOOL_FUNCTIONS = {
@@ -348,9 +372,29 @@ TOOL_FUNCTIONS = {
     "initiate_payment": lambda db, user_id, session_id, **kw: initiate_payment(db, user_id, session_id),
     "decline_upsell": lambda db, user_id, session_id, **kw: decline_upsell(db, user_id, session_id),
     "report_content_gap": lambda db, user_id, session_id, **kw: report_content_gap(db, user_id, session_id, **kw),
+    "list_orders": lambda db, user_id, session_id, **kw: list_orders(db, user_id),
+    "wallet_balance": lambda db, user_id, session_id, **kw: wallet_balance(db, user_id),
 }
 
 TOOL_SCHEMAS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "list_orders",
+            "description": "The buyer's own past orders, newest first: order number, date, items, total (paise), "
+            "status (PAID / CONFIRMED_COD = cash on delivery / AWAITING_PAYMENT / CANCELLED). Use for any question "
+            "about previous, old, last or past orders.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "wallet_balance",
+            "description": "The buyer's Gnani Shop wallet balance in paise.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
     {
         "type": "function",
         "function": {

@@ -596,3 +596,49 @@ def test_small_talk_is_instant(db_session, message, key):
         harness.handle_chat(db_session, f"st-{key}", "u", "తెలుగులో మాట్లాడు", None, "r0")
         r = harness.handle_chat(db_session, f"st-{key}", "u", message, None, "r1")
     assert r.reply == spoken_phrase(key, "te-IN")
+
+
+def _load_catalog(db):
+    import json as _json
+    from pathlib import Path
+
+    catalog = _json.loads((Path(__file__).resolve().parents[1] / "data" / "products.json").read_text(encoding="utf-8"))
+    for e in catalog["products"]:
+        product_repo.upsert(db, {k: e[k] for k in ("sku", "name", "brand", "category", "price_paise", "unit",
+                                                    "stock", "description", "tags", "cost_paise")})
+    db.commit()
+
+
+@pytest.mark.parametrize("message,lang,expect", [
+    ("Tell me about my old order.", "en-IN", "You haven't placed any orders yet."),
+    ("నా పాత ఆర్డర్ గురించి చెప్పు", "te-IN", "మీరు ఇంకా ఏ ఆర్డర్ చేయలేదు."),
+    ("what's my wallet balance?", "en-IN", "Your wallet balance is"),
+    ("పాలు ఎంత?", "te-IN", "ధర ₹"),
+    ("दूध कितने का है?", "hi-IN", "की कीमत ₹"),
+])
+def test_everyday_questions_are_instant(db_session, message, lang, expect):
+    from app.agent import harness
+
+    _load_catalog(db_session)
+    agent_session_repo.get_or_create_session(db_session, f"q-{lang}-{len(message)}", "u", None)
+    agent_session_repo.get_session(db_session, f"q-{lang}-{len(message)}").language = lang
+    db_session.commit()
+    with patch("app.agent.harness.gateway.call", side_effect=AssertionError("model must not be called")):
+        r = harness.handle_chat(db_session, f"q-{lang}-{len(message)}", "u", message, None, "r", language=lang)
+    assert expect in r.reply
+
+
+def test_clear_cart_goes_through_policy_for_each_line(db_session):
+    from app.agent import harness
+    from app.schemas.cart import CartItemCreate
+    from app.services import cart_service
+
+    _load_catalog(db_session)
+    cart_service.add_item(db_session, "u", CartItemCreate(sku="DAI-001", quantity=2))
+    cart_service.add_item(db_session, "u", CartItemCreate(sku="GRO-004", quantity=1))
+    with patch("app.agent.harness.gateway.call", side_effect=AssertionError("model must not be called")):
+        r = harness.handle_chat(db_session, "clear-1", "u", "सब हटा दो", None, "r", language="hi-IN")
+    assert r.cart["items"] == []
+    decisions = [e for e in harness._audit.get_trail(db_session, "clear-1")
+                 if e.event_type == "policy_decision" and e.tool_name == "remove_from_cart"]
+    assert len(decisions) == 2

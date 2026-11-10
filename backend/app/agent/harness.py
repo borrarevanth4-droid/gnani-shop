@@ -68,7 +68,8 @@ SYSTEM_PROMPT = (
     "4. Do steps 1-3 for EVERY item the buyer listed BEFORE you write your reply. You may make several tool calls "
     "in one step — e.g. search for every item at once, then add every item at once.\n"
     "5. 'One more' / 'another' / 'ఇంకొకటి' / 'एक और' = add 1 more of the item added last. 'Remove X' / "
-    "'తీసేయండి' / 'हटा दो' = remove_from_cart. 'What's in my cart' = view_cart.\n"
+    "'తీసేయండి' / 'हटा दो' = remove_from_cart. 'What's in my cart' = view_cart. Previous / old / last "
+    "orders = list_orders. Wallet balance = wallet_balance.\n"
     "6. If a search returns no products, try at most ONE other word; if still nothing, tell the buyer we don't "
     "stock it. Never repeat a search.\n"
     "7. Pay / checkout / చెల్లించండి / पेमेंट करो / பணம் செலுத்து = call initiate_payment. It always waits for "
@@ -197,6 +198,11 @@ def handle_chat(
         or _try_catalog_overview(db, session, user_message)
         or _try_remove_fast_path(db, session, user_message, request_id)
         or _try_view_cart_fast_path(db, session, user_message, request_id)
+        or _try_orders_fast_path(db, session, user_message, request_id)
+        or _try_wallet_fast_path(db, session, user_message, request_id)
+        or _try_clear_cart_fast_path(db, session, user_message, request_id)
+        or _try_pay_fast_path(db, session, user_message, request_id)
+        or _try_price_fast_path(db, session, user_message, request_id)
         or _try_add_fast_path(db, session, user_message, request_id)
     )
     result = fast if fast else _run_loop(db, session, request_id)
@@ -484,6 +490,34 @@ def _last_decision(db: Session, session_id: str, tool_name: str = "add_to_cart")
     return None
 
 
+def _candidates(products, item) -> list:
+    """Catalogue products matching one parsed item (tag, then brand)."""
+    if item.sku:
+        candidates = [p for p in products if p.sku == item.sku]
+    else:
+        candidates = [p for p in products if item.tag in [t.lower() for t in (p.tags or [])]]
+    if item.brand_words and len(candidates) > 1:
+        # Most specific first: the brand word in the product NAME ("Parle-G"
+        # → Parle-G Gold, not Parle Hide & Seek), then the brand field.
+        by_name = [p for p in candidates if any(b in (p.name or "").lower() for b in item.brand_words)]
+        by_brand = [p for p in candidates if any(
+            b.split("-")[0] in (p.brand or "").lower() for b in item.brand_words)]
+        candidates = by_name or by_brand or candidates
+    return candidates
+
+
+def _brand_vocabulary(products) -> tuple[set[str], dict[str, str]]:
+    brand_words = {w for p in products for w in (p.brand or "").lower().split()} | {"maggi", "parle-g", "coca-cola",
+                                                                                     "kitkat", "dairy milk"}
+    # A brand that by itself names exactly one product ("a Coca-Cola", "Maggi").
+    brand_only = {}
+    for b in brand_words:
+        hits = [p for p in products if b in (p.name or "").lower()]
+        if len(hits) == 1:
+            brand_only[b] = hits[0].sku
+    return brand_words, brand_only
+
+
 def _try_add_fast_path(db: Session, session, message: str, request_id: str | None) -> HarnessResult | None:
     """Simple orders ("ఒక లీటర్ పాలు మరియు రెండు ప్యాకెట్ల ఉప్పు") understood by
     code (app/agent/fast_path.py) and added through the policy engine with no
@@ -506,17 +540,7 @@ def _try_add_fast_path(db: Session, session, message: str, request_id: str | Non
         return None
     resolved: list[tuple[Product, int]] = []
     for item in plan:
-        if item.sku:
-            candidates = [p for p in products if p.sku == item.sku]
-        else:
-            candidates = [p for p in products if item.tag in [t.lower() for t in (p.tags or [])]]
-        if item.brand_words and len(candidates) > 1:
-            # Most specific first: the brand word in the product NAME ("Parle-G"
-            # → Parle-G Gold, not Parle Hide & Seek), then the brand field.
-            by_name = [p for p in candidates if any(b in (p.name or "").lower() for b in item.brand_words)]
-            by_brand = [p for p in candidates if any(
-                b.split("-")[0] in (p.brand or "").lower() for b in item.brand_words)]
-            candidates = by_name or by_brand or candidates
+        candidates = _candidates(products, item)
         if len(candidates) != 1 or candidates[0].stock <= 0:
             return None  # ambiguous or unavailable — the model explains / asks
         resolved.append((candidates[0], pack_quantity(item, candidates[0].unit)))
@@ -582,6 +606,178 @@ def _try_view_cart_fast_path(db: Session, session, message: str, request_id: str
     result.view_only = True
     return result
 
+
+def _instant(db: Session, session, reply: str, spoken: str | None = None) -> HarnessResult:
+    """A finished turn answered by code: stored in the history, shown and
+    spoken as-is (already in the buyer's language)."""
+    agent_session_repo.append_message(db, session.session_id, "assistant", content=reply)
+    db.commit()
+    result = HarnessResult(reply=reply, status="completed", pending=None, cart=_cart_dict(db, session.user_id),
+                           upsell=_upsell_dict(db, session.session_id))
+    result.spoken_reply = spoken or reply
+    result.view_only = True
+    return result
+
+
+def _local_name(product, lang: str) -> str:
+    return (product.aliases or {}).get(normalize_language(lang)) or product.name
+
+
+_ORDER_WORDS = ("order", "ऑर्डर", "आर्डर", "ఆర్డర్", "ఆర్డరు", "ஆர்டர்", "ಆರ್ಡರ್", "ഓർഡർ", "অর্ডার", "ઓર્ડર",
+                "ਆਰਡਰ", "purchase", "खरीद", "కొన్న")
+_HISTORY_WORDS = (
+    "last", "previous", "old", "past", "earlier", "history", "status", "detail", "my order", "recent", "before",
+    "pichla", "pichhla", "purana", "pichle", "pehle", "पिछल", "पुरान", "पहले", "मेरा ऑर्डर", "मेरे ऑर्डर", "स्टेटस",
+    "మునుపటి", "పాత", "చివరి", "ముందు", "గత", "నా ఆర్డర్", "స్టేటస్", "వివరాలు", "కిందటి", "ఇంతకు ముందు",
+    "கடைசி", "பழைய", "முந்தைய", "முன்பு", "என் ஆர்டர்", "ஹிஸ்டரி", "ಹಿಂದಿನ", "ಕೊನೆಯ", "ಹಳೆಯ", "ನನ್ನ ಆರ್ಡರ್",
+    "അവസാന", "പഴയ", "മുമ്പത്തെ", "എന്റെ ഓർഡർ", "मागच", "जुन", "शेवटच", "माझी ऑर्डर", "শেষ", "পুরনো", "আগের",
+    "আমার অর্ডার", "છેલ્લ", "જૂન", "અગાઉ", "મારો ઓર્ડર", "ਪਿਛਲ", "ਪੁਰਾਣ", "ਮੇਰਾ ਆਰਡਰ", "chivari", "munupati",
+)
+_STATUS_KEY = {"PAID": "status_paid", "CONFIRMED_COD": "status_cod", "CANCELLED": "status_cancelled",
+               "FAILED": "status_cancelled"}
+
+
+def _try_orders_fast_path(db: Session, session, message: str, request_id: str | None) -> HarnessResult | None:
+    """"Tell me about my old order" / "నా పాత ఆర్డర్ ఏమిటి" — answered from the
+    buyer's own order history, through the audited list_orders tool."""
+    text = (message or "").lower()
+    if len(text) > 120 or not any(w in text for w in _ORDER_WORDS) or not any(w in text for w in _HISTORY_WORDS):
+        return None
+    _synthetic_call(db, session, "list_orders", {}, request_id)
+    from app.agent.tools import list_orders
+    from app.models.product import Product
+
+    orders = [o for o in list_orders(db, session.user_id)["orders"] if o["items"]]
+    lang = session.language or "en-IN"
+    if not orders:
+        return _instant(db, session, spoken_phrase("orders_none", lang))
+    last = orders[0]
+    names = {p.sku: p for p in db.query(Product).filter(Product.sku.in_([i["sku"] for i in last["items"]]))}
+    when = datetime.fromisoformat(last["placed_at"]).strftime("%d %b").lstrip("0")
+    status = spoken_phrase(_STATUS_KEY.get(last["status"], "status_waiting"), lang)
+    shown = ", ".join(f"{i['quantity']} × {i['name']}" for i in last["items"])
+    said = ", ".join(f"{i['quantity']} {_local_name(names[i['sku']], lang)}" for i in last["items"] if i["sku"] in names)
+    common = dict(n=str(last["order_id"]), when=when, amount=rupees(last["amount_paise"]), status=status)
+    reply = spoken_phrase("last_order", lang, items=shown, **common)
+    spoken = spoken_phrase("last_order", lang, items=said, **common)
+    if len(orders) > 1:
+        more = " " + spoken_phrase("orders_count", lang, count=str(len(orders)))
+        reply, spoken = reply + more, spoken + more
+    return _instant(db, session, reply, spoken)
+
+
+_WALLET_WORDS = ("wallet", "balance", "वॉलेट", "वालेट", "बैलेंस", "వాలెట్", "బ్యాలెన్స్", "வாலெட்", "வாலட்",
+                 "பேலன்ஸ்", "ವಾಲೆಟ್", "ಬ್ಯಾಲೆನ್ಸ್", "വാലറ്റ്", "ബാലൻസ്", "ওয়ালেট", "ব্যালেন্স", "વૉલેટ", "વોલેટ",
+                 "બેલેન્સ", "ਵਾਲਿਟ", "ਬੈਲੇਂਸ")
+_TOPUP_WORDS = ("top", "add money", "recharge", "load", "डाल", "जमा", "జమ", "వేయ", "ఎక్కించ", "சேர்", "ಸೇರಿಸ",
+                "ചേർക്ക", "भर", "যোগ", "ઉમેર", "ਪਾ", "pay", "पेमेंट", "చెల్లించ")
+
+
+def _try_wallet_fast_path(db: Session, session, message: str, request_id: str | None) -> HarnessResult | None:
+    """"How much is in my wallet?" — the balance through the audited
+    wallet_balance tool."""
+    text = (message or "").lower()
+    if len(text) > 80 or not any(w in text for w in _WALLET_WORDS) or any(w in text for w in _TOPUP_WORDS):
+        return None
+    _synthetic_call(db, session, "wallet_balance", {}, request_id)
+    from app.payments import wallet as wallet_service
+
+    lang = session.language or "en-IN"
+    return _instant(db, session, spoken_phrase("wallet_balance", lang,
+                                               amount=rupees(wallet_service.balance_paise(db, session.user_id))))
+
+
+_CLEAR_WORDS = ("clear", "empty", "खाली", "ఖాళీ", "காலி", "ಖಾಲಿ", "കാലി", "रिकाम", "খালি", "ખાલી", "ਖਾਲੀ", "khali")
+_ALL_WORDS = ("everything", "all items", "all of it", "sab", "सब", "అన్నీ", "అన్ని", "అంతా", "எல்லா", "ಎಲ್ಲಾ",
+              "എല്ലാ", "सगळ", "সব", "બધ", "ਸਭ", "anni", "ellam")
+
+
+def _try_clear_cart_fast_path(db: Session, session, message: str, request_id: str | None) -> HarnessResult | None:
+    """"Empty my cart" / "सब हटा दो" / "అన్నీ తీసేయండి" — every line removed
+    through the normal remove_from_cart tool (policy + audit for each)."""
+    text = (message or "").lower()
+    if len(text) > 80:
+        return None
+    clear = any(w in text for w in _CART_WORDS) and any(w in text for w in _CLEAR_WORDS)
+    remove_all = any(w in text for w in _REMOVE_WORDS) and any(w in text for w in _ALL_WORDS)
+    if not (clear or remove_all):
+        return None
+    cart = cart_repo.get_or_create_active_cart(db, session.user_id)
+    lang = session.language or "en-IN"
+    if not cart.items:
+        return _instant(db, session, spoken_phrase("cart_empty", lang))
+    for sku in [i.product.sku for i in cart.items]:
+        _synthetic_call(db, session, "remove_from_cart", {"sku": sku}, request_id)
+    db.expire_all()
+    if cart_repo.get_or_create_active_cart(db, session.user_id).items:
+        return None  # something was refused — the model explains
+    return _instant(db, session, spoken_phrase("cart_cleared", lang))
+
+
+_PAY_WORDS = (
+    "pay", "checkout", "check out", "place the order", "place order", "place my order", "पेमेंट", "भुगतान",
+    "चेकआउट", "ऑर्डर कर", "ऑर्डर प्लेस", "చెల్లించ", "చెల్లింపు", "పేమెంట్", "చెక్అవుట్", "ఆర్డర్ చేయ",
+    "ఆర్డర్ పెట్ట", "பணம் செலுத்த", "பணம் கட்ட", "பேமெண்ட்", "செக்அவுட்", "ಪಾವತಿಸ", "ಪಾವತಿ ಮಾಡ", "ಪೇಮೆಂಟ್",
+    "പണം അടയ്ക്ക", "പേയ്മെന്റ്", "पैसे भर", "पेमेंट कर", "টাকা দি", "পেমেন্ট", "ચુકવણી", "પેમેન્ટ", "ਭੁਗਤਾਨ",
+    "ਪੇਮੈਂਟ", "chelli",
+)
+
+
+def _try_pay_fast_path(db: Session, session, message: str, request_id: str | None) -> HarnessResult | None:
+    """"Pay now" / "చెల్లించండి" / "पेमेंट कर दो" — straight to
+    initiate_payment (which always waits for the buyer's tap)."""
+    text = (message or "").lower()
+    if len(text) > 60 or re.search(r"\d", text) or not any(w in text for w in _PAY_WORDS):
+        return None
+    if any(w in text for w in _HISTORY_WORDS) or any(w in text for w in _WALLET_WORDS[1:3]):
+        return None
+    if not cart_repo.get_or_create_active_cart(db, session.user_id).items:
+        return None  # the model explains there's nothing to pay for
+    return _synthetic_call(db, session, "initiate_payment", {}, request_id)  # None → the model explains
+
+
+_PRICE = re.compile(
+    r"how much( is| are| does| do)?|what('s| is) the (price|cost|rate)|price of|cost of|rate of|\bprice\b|\bcost\b|"
+    r"\brate\b|kitne ka|kitne ki|kitna hai|kitne|kitna|entha|evvalavu|enna vilai|"
+    r"कितने का|कितने की|कितने में|कितना है|कितने|कितना|क्या दाम|दाम|कीमत|भाव|"
+    r"ధర ఎంత|ఎంతకి|ఎంత|ధర|రేటు|என்ன விலை|விலை என்ன|விலை|எவ்வளவு|ಎಷ್ಟು|ಬೆಲೆ|എത്ര|വില|किती|किंमत|"
+    r"দাম কত|কত দাম|দাম|কত|કેટલા|કિંમત|ਕਿੰਨੇ|ਕੀਮਤ|ਕਿੰਨਾ",
+    re.IGNORECASE,
+)
+_PRICE_FILLER = re.compile(
+    r"(?<!\w)(is|are|the|a|of|for|ka|ki|ke|hai|hain|tell me|please|है|हैं|का|की|के|में|ఉంది|ఉన్నాయి|అండి|"
+    r"చెప్పండి|చెప్పు|ఒక|ఏమిటి|உள்ளது|என்ன|சொல்லுங்கள்|ಏನು|ಇದೆ|ആണ്|ആണ|आहे|আছে|છે|ਹੈ)(?!\w)",
+    re.IGNORECASE,
+)
+
+
+def _try_price_fast_path(db: Session, session, message: str, request_id: str | None) -> HarnessResult | None:
+    """"How much is milk?" / "పాలు ఎంత?" / "दूध कितने का है" — the price from
+    the catalogue in the buyer's language (no cart change)."""
+    from app.agent.fast_path import parse
+    from app.models.product import Product
+
+    text = message or ""
+    if len(text) > 80 or not _PRICE.search(text):
+        return None
+    rest = _PRICE_FILLER.sub(" ", re.sub(r"[?？!.,।]", " ", _PRICE.sub(" ", text)))
+    products = db.query(Product).all()
+    brand_words, brand_only = _brand_vocabulary(products)
+    plan = parse(rest, brand_words, brand_only)
+    if not plan or len(plan) != 1:
+        return None
+    candidates = [p for p in _candidates(products, plan[0]) if p.stock > 0][:3]
+    if not candidates:
+        return None
+    lang = session.language or "en-IN"
+    _synthetic_call(db, session, "get_product", {"sku": candidates[0].sku}, request_id)
+    if len(candidates) == 1:
+        p = candidates[0]
+        amount = rupees(effective_price_paise(p))
+        return _instant(db, session, spoken_phrase("price_is", lang, item=p.name, amount=amount),
+                        spoken_phrase("price_is", lang, item=_local_name(p, lang), amount=amount))
+    shown = ", ".join(f"{p.name} {rupees(effective_price_paise(p))}" for p in candidates)
+    return _instant(db, session, spoken_phrase("we_have", lang, items=shown))
 
 def _localized_turn_reply(db: Session, session, result: "HarnessResult", since) -> str:
     """Language models write Telugu, Kannada or Tamil far less reliably than
@@ -913,12 +1109,12 @@ def _confirmation_reply(session, tool_name: str, action: ProposedCartState, reas
     """The rulebook's reasons are English. For a payment waiting on the
     buyer, a non-English buyer hears/reads the amount in their own language
     (the English reason stays on the pending card for the record)."""
-    lang = getattr(session, "language", None)
-    if not lang or normalize_language(lang) == "en-IN":
-        return reason
+    lang = getattr(session, "language", None) or "en-IN"
     if tool_name == "initiate_payment" and action.cart_line_items:
         total = sum(line.product.price_paise * line.quantity for line in action.cart_line_items)
         return spoken_phrase("confirm_amount", lang, amount=rupees(total))
+    if normalize_language(lang) == "en-IN":
+        return reason
     if tool_name == "add_to_cart":
         # ConfirmationThresholdRule: the cart would go over the tap threshold.
         return spoken_phrase("confirm_amount", lang, amount=rupees(action.proposed_cart_total_paise))
@@ -1404,7 +1600,7 @@ def _parse_tool_call(tool_name: str, arguments_raw: str) -> dict | None:
             if quantity < 1:
                 return None
             return {"sku": sku.strip(), "quantity": quantity}
-        if tool_name in ("view_cart", "initiate_payment", "decline_upsell"):
+        if tool_name in ("view_cart", "initiate_payment", "decline_upsell", "list_orders", "wallet_balance"):
             return {}
         if tool_name == "present_product":
             # Missing from the original parser, so every product card the
