@@ -26,3 +26,6 @@ frontend/next-env.d.ts
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local design reference (not part of the project)
+DESIGN-*.md
