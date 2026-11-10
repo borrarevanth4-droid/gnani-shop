@@ -38,7 +38,10 @@ def build_keyterms(db: Session) -> list[str]:
 
     products = db.query(Product).all()
     ordered: list[str] = []
-    ordered += sorted({p.brand for p in products if p.brand})
+    # Bare brands of 4 letters or fewer ("Tata", "Real") are left out: boosting
+    # them made the recogniser hear "hata do" and "పాత" as "Tata". The full
+    # product names below still carry them ("Tata Salt Iodised").
+    ordered += sorted({p.brand for p in products if p.brand and len(p.brand) > 4})
     for p in products:
         # "Aashirvaad Shudh Chakki Atta 5kg" → "Aashirvaad Shudh Chakki Atta"
         ordered.append(re.sub(r"\s*\d+(\.\d+)?\s*(kg|g|ml|l|ltr|pcs?|pack)\b.*$", "", p.name, flags=re.I))

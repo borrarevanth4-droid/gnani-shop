@@ -1,4 +1,5 @@
 import type {
+  CartHistory,
   AgentChatResponse,
   AgentCreateRequest,
   AgentCreateResponse,
@@ -39,7 +40,7 @@ import type {
 } from "./types";
 import { authHeaders } from "./auth";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8842";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""; // "" = same origin; Next forwards /api/* to the backend
 
 const REQUEST_TIMEOUT_MS = 8000;
 // The agent loop can make several sequential model calls (with retries/fallback)
@@ -64,9 +65,9 @@ export async function request<T>(path: string, init?: RequestInit, timeoutMs: nu
     });
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error(`Timed out reaching the API at ${API_URL}. Is the backend running?`);
+      throw new Error(`Timed out reaching the API at ${API_URL || "/api"}. Is the backend running?`);
     }
-    throw new Error(`Could not reach the API at ${API_URL}. Is the backend running?`);
+    throw new Error(`Could not reach the API at ${API_URL || "/api"}. Is the backend running?`);
   } finally {
     clearTimeout(timeout);
   }
@@ -235,6 +236,14 @@ export function initiateCheckout(sessionId: string): Promise<PaymentInfo> {
     method: "POST",
     body: JSON.stringify({ session_id: sessionId }),
   });
+}
+
+export function fetchCartHistory(): Promise<CartHistory> {
+  return request<CartHistory>("/api/cart/history");
+}
+
+export function buyAgain(orderId: number): Promise<{ cart: Cart; added: string[]; skipped: string[] }> {
+  return request(`/api/cart/reorder/${orderId}`, { method: "POST" });
 }
 
 export function fetchOrders(): Promise<OrderListItem[]> {
@@ -598,7 +607,8 @@ export function refreshCallBatch(id: number): Promise<CallBatch> {
 }
 
 export function voiceStreamUrl(params: Record<string, string | null | undefined>): string {
-  const base = API_URL.replace(/^http/, "ws");
+  // WebSockets go straight to the backend (the dev proxy only forwards HTTP).
+  const base = (process.env.NEXT_PUBLIC_WS_URL ?? (API_URL || `http://${window.location.hostname}:8842`)).replace(/^http/, "ws");
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
   return `${base}/api/voice/stream?${q.toString()}`;

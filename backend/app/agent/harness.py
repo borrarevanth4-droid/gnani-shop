@@ -205,7 +205,7 @@ def handle_chat(
         or _try_price_fast_path(db, session, user_message, request_id)
         or _try_add_fast_path(db, session, user_message, request_id)
     )
-    result = fast if fast else _run_loop(db, session, request_id)
+    result = fast if fast else _run_loop(db, session, request_id, user_message)
     demand_capture.schedule_capture(db, session_id, user_message, turn_started_at)
     result.steps = turn_steps(db, session_id, turn_started_at)
     _guard_reply(session, result)
@@ -226,7 +226,8 @@ def handle_chat(
 _REMOVE_WORDS = (
     "remove", "delete", "take out", "hata", "nikal", "हटा", "निकाल", "निकालो", "काढ", "काढून", "తీసేయ", "తీసివేయ",
     "తొలగించ", "teeseyi", "நீக்கு", "நீக்க", "எடுத்துவிடு", "ತೆಗೆ", "ತೆಗೆದುಹಾಕ", "നീക്ക", "മാറ്റ", "বাদ", "সরিয়ে",
-    "সরাও", "કાઢ", "દૂર કર", "ਹਟਾ", "ਕੱਢ",
+    "সরাও", "કાઢ", "દૂર કર", "ਹਟਾ", "ਕੱਢ", "வேண்டாம்", "venda", "vendam", "vendaam", "venta", "vendor",
+    "వద్దు", "vaddu", "ಬೇಡ", "വേണ്ട", "नको", "नहीं चाहिए", "nahi chahiye",
 )
 
 
@@ -245,8 +246,20 @@ def _try_remove_fast_path(db: Session, session, message: str, request_id: str | 
         if any(t in [tag.lower() for tag in (item.product.tags or [])] or t in (item.product.name or "").lower()
                for t in terms)
     ]
+    if not hits and len(terms) == 1:
+        # Asked to remove something that isn't in the cart: say so, from code.
+        # (Live test: a backup model replied "removed milk" to an empty cart.)
+        from app.i18n.grocery_terms import native_names
+
+        lang = session.language or "en-IN"
+        word = native_names(terms[0]).get(lang) or terms[0]
+        reply = spoken_phrase("not_in_cart", lang, items=word)
+        agent_session_repo.append_message(db, session.session_id, "assistant", content=reply)
+        db.commit()
+        return HarnessResult(reply=reply, status="completed", pending=None, cart=_cart_dict(db, session.user_id),
+                             spoken_reply=reply)
     if len(hits) != 1:
-        return None  # nothing or several match — let the model handle (and ask) as usual
+        return None  # several match — let the model handle (and ask) as usual
     outcome, result = _propose_and_resolve(
         db, session, "remove_from_cart", {"sku": hits[0].product.sku}, request_id, confirmation_source="voice_command"
     )
@@ -956,7 +969,26 @@ def _tools_for(session) -> list[dict]:
     return TOOL_SCHEMAS
 
 
-def _run_loop(db: Session, session, request_id: str | None) -> HarnessResult:
+# A question ("how much is milk?") must never change the cart, whatever the
+# model proposes. (Live test: speech heard "milk?" as "potato?" and a backup
+# model then ADDED potato.) Asking + an explicit add verb is still an add.
+_QUESTION_WORDS = (
+    "?", "how much", "price", "cost", "kitna", "kitne", "entha", "enta", "evvalavu", "eshtu", "ethra",
+    "कितना", "कितने", "कितनी", "दाम", "ఎంత", "ధర", "எவ்வளவு", "விலை", "ಎಷ್ಟು", "ಬೆಲೆ", "എത്ര", "വില",
+    "किती", "किंमत", "কত", "দাম", "કેટલ", "ભાવ", "ਕਿੰਨ", "ਕੀਮਤ",
+)
+_ADD_VERBS = (
+    "add", "put", "daal", "dal do", "डाल", "जोड़", "వేయ", "వేసి", "వెయ్", "చేర్చ", "சேர்", "போடு", "ಸೇರಿಸ", "ಹಾಕ",
+    "ചേർക്ക", "ഇട", "टाका", "घाला", "যোগ", "ઉમેર", "નાખ", "ਪਾ ਦ", "ਜੋੜ",
+)
+
+
+def _is_question_only(message: str | None) -> bool:
+    text = (message or "").lower()
+    return any(w in text for w in _QUESTION_WORDS) and not any(v in text for v in _ADD_VERBS)
+
+
+def _run_loop(db: Session, session, request_id: str | None, user_message: str | None = None) -> HarnessResult:
     session_id = session.session_id
     user_id = session.user_id
 
@@ -1059,6 +1091,14 @@ def _run_loop(db: Session, session, request_id: str | None) -> HarnessResult:
                 )
                 continue
             seen_calls.add(signature)
+            if tc.name == "add_to_cart" and _is_question_only(user_message):
+                agent_session_repo.append_message(
+                    db, session_id, "tool",
+                    content=json.dumps({"skipped": "The buyer asked a question, not to buy. Do NOT add anything — "
+                                        "answer the question (e.g. the price) and ask if they want it."}),
+                    tool_call_id=tc.id, tool_name=tc.name,
+                )
+                continue
             stop = _handle_tool_call(db, session, tc, request_id)
         db.commit()
         if stop is not None:

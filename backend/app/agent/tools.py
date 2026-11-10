@@ -170,7 +170,7 @@ def present_product(db: Session, user_id: str, session_id: str, sku: str, within
 
 
 def add_to_cart(db: Session, user_id: str, sku: str, quantity: int = 1) -> dict:
-    cart = cart_service.add_item(db, user_id, CartItemCreate(sku=sku, quantity=quantity))
+    cart = cart_service.add_item(db, user_id, CartItemCreate(sku=sku, quantity=quantity), source="assistant")
     return cart.model_dump(mode="json")
 
 
@@ -203,7 +203,7 @@ def remove_from_cart(db: Session, user_id: str, sku: str) -> dict:
             match = hits[0]
     if match is None:
         return {"error": f"'{sku}' is not in the cart. Use a SKU from the current cart."}
-    updated = cart_service.delete_item(db, user_id, match.id)
+    updated = cart_service.delete_item(db, user_id, match.id, source="assistant")
     return updated.model_dump(mode="json")
 
 

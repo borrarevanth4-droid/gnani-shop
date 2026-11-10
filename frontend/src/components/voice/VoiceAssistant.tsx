@@ -16,7 +16,7 @@ import { ChevronDown, Keyboard, Loader2, Mic, Send, ShieldCheck, Square, Volume2
 import { confirmPendingAction, fetchVoiceCatalog, sendAgentMessage, sendVoiceTurn, synthesizeStream } from "@/lib/api";
 import { getOrCreateSessionId, startNewSessionId } from "@/lib/checkout";
 import { LANGUAGES, nativeName, useI18n } from "@/lib/i18n";
-import { MicRecorder, PcmPlayer } from "@/lib/voice";
+import { DEFAULT_VAD, MicRecorder, PcmPlayer, VoiceActivityDetector, unlockAudio } from "@/lib/voice";
 import type { Cart, PaymentInfo, PaymentResult, PendingAction, VoiceCatalog, VoiceTurn } from "@/lib/types";
 import PaymentSheet from "@/components/PaymentSheet";
 import Button from "@/components/ui/Button";
@@ -48,16 +48,6 @@ interface Turn {
 
 const VOICE_PREF_KEY = "gnani-shop-voice";
 
-// Voice-activity detection tuning (levels are RMS×4, clipped to 0..1).
-const VAD = {
-  calibrateMs: 350, // learn the room's noise floor first
-  minThreshold: 0.07,
-  floorMultiplier: 2.4,
-  speechConfirmMs: 160, // this much continuous voice = speech started
-  endSilenceMs: 1300, // this much quiet after speech = you've finished
-  noSpeechTimeoutMs: 8000,
-  maxTurnMs: 25000, // Prisma REST accepts up to 30 s
-};
 
 function StepList({ steps }: { steps: HarnessStep[] }) {
   return (
@@ -133,8 +123,9 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
 
   const recorder = useRef<MicRecorder | null>(null);
   const player = useRef<PcmPlayer | null>(null);
-  const levelRef = useRef(0);
-  const raf = useRef<number | null>(null);
+  const vad = useRef(new VoiceActivityDetector(DEFAULT_VAD));
+  const listening = useRef(false); // frames are being judged by the VAD
+  const finishRef = useRef<(send: boolean) => void>(() => {});
   const conversing = useRef(false); // hands-free loop active
   const stopping = useRef(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -160,7 +151,7 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     fetchVoiceCatalog().then(setCatalog).catch(() => {});
     return () => {
       conversing.current = false;
-      if (raf.current) cancelAnimationFrame(raf.current);
+      listening.current = false;
       recorder.current?.stop();
       player.current?.stop();
     };
@@ -251,9 +242,18 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
   // ------------------------------------------------------------ hands-free listening
 
   function stopMeter() {
-    if (raf.current) cancelAnimationFrame(raf.current);
-    raf.current = null;
+    listening.current = false;
     setLevel(0);
+  }
+
+  // Called for every 20 ms of mic audio (from the audio thread, not from
+  // animation frames — so it keeps working in a background tab).
+  function onFrame(_pcm: Int16Array, level: number) {
+    if (!listening.current || stopping.current) return;
+    setLevel(level);
+    const ev = vad.current.push(level);
+    if (ev === "end") finishRef.current(true);
+    else if (ev === "no_speech") finishRef.current(false);
   }
 
   async function startListening() {
@@ -261,51 +261,23 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     setNotice(null);
     player.current?.stop();
     try {
-      const rec = new MicRecorder((l) => {
-        levelRef.current = l;
-      });
-      await rec.start();
+      // One mic for the whole conversation: no re-prompt, no warm-up gap,
+      // and a 400 ms pre-roll so the first syllable is never clipped.
+      const rec = recorder.current ?? new MicRecorder(() => {}, (pcm, l) => onFrameRef.current(pcm, l));
       recorder.current = rec;
+      await rec.start();
+      vad.current.reset();
       stopping.current = false;
+      listening.current = true;
       setPhase("listening");
-      runVad();
     } catch {
       setConversing(false);
+      recorder.current?.stop();
+      recorder.current = null;
       setError("Microphone permission is needed for voice. You can type instead.");
       setTyping(true);
       setPhase("idle");
     }
-  }
-
-  function runVad() {
-    const started = performance.now();
-    let noise = 0;
-    let voicedSince: number | null = null;
-    let speech = false;
-    let lastVoice = started;
-    const tick = () => {
-      if (!recorder.current || stopping.current) return;
-      const now = performance.now();
-      const l = levelRef.current;
-      setLevel(l);
-      if (now - started < VAD.calibrateMs) {
-        noise = Math.max(noise, l);
-      } else {
-        const threshold = Math.max(VAD.minThreshold, noise * VAD.floorMultiplier);
-        if (l > threshold) {
-          lastVoice = now;
-          voicedSince ??= now;
-          if (!speech && now - voicedSince > VAD.speechConfirmMs) speech = true;
-        } else {
-          voicedSince = null;
-        }
-        if (speech && now - lastVoice > VAD.endSilenceMs) return void finishListening(true);
-        if (!speech && now - started > VAD.noSpeechTimeoutMs) return void finishListening(false);
-        if (now - started > VAD.maxTurnMs) return void finishListening(true);
-      }
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
   }
 
   async function finishListening(send: boolean) {
@@ -313,11 +285,11 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     stopping.current = true;
     stopMeter();
     const rec = recorder.current;
-    recorder.current = null;
     if (!rec) return;
     const secs = rec.seconds();
-    const wav = await rec.stop();
-    if (!send || secs < 0.5) {
+    const wav = rec.take(); // mic stays open for the next turn
+    if (!send || secs < 0.4) {
+      releaseMic();
       setConversing(false);
       setPhase("idle");
       setNotice(send ? null : "I didn't hear anything — tap the mic and speak.");
@@ -327,6 +299,7 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     try {
       const r = await sendVoiceTurn(sessionId, wav, { ttsModel, languageHint: lang === "en-IN" ? null : lang });
       if (r.fell_back_to_text) {
+        releaseMic();
         setConversing(false);
         setTyping(true);
         applyTurn(r, null, r.language);
@@ -340,29 +313,41 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
       if (conversing.current && handsFree && !needsTap) {
         await startListening();
       } else {
+        releaseMic();
         setConversing(false);
         setPhase("idle");
       }
     } catch (e) {
+      releaseMic();
       setConversing(false);
       setError(e instanceof Error ? e.message : String(e));
       setPhase("idle");
     }
   }
 
+  function releaseMic() {
+    stopMeter();
+    recorder.current?.stop();
+    recorder.current = null;
+  }
+
   function endConversation() {
     setConversing(false);
     player.current?.stop();
-    if (recorder.current) {
-      stopping.current = true;
-      stopMeter();
-      recorder.current.stop();
-      recorder.current = null;
-    }
+    stopping.current = true;
+    releaseMic();
     setPhase("idle");
   }
 
+  // Callbacks living on the long-lived mic must always see the latest state.
+  const onFrameRef = useRef<(pcm: Int16Array, level: number) => void>(() => {});
+  useEffect(() => {
+    onFrameRef.current = onFrame;
+    finishRef.current = finishListening;
+  });
+
   function onMic() {
+    unlockAudio(); // inside the click, so the reply is allowed to play
     if (phase === "listening") return void finishListening(true); // manual stop → send now
     if (phase === "speaking") return endConversation();
     if (phase === "idle") {
@@ -377,6 +362,7 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
     const msg = text.trim();
     if (!msg) return;
     setText("");
+    unlockAudio();
     setPhase("thinking");
     setError(null);
     try {
@@ -610,7 +596,10 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
                   {turn.role === "assistant" && turn.spoken && (
                     <button
                       className="hover:text-white"
-                      onClick={() => say(turn.spoken!, turn.language ?? null).then(() => setPhase("idle"))}
+                      onClick={() => {
+                        unlockAudio();
+                        say(turn.spoken!, turn.language ?? null).then(() => setPhase("idle"));
+                      }}
                       title="Play again"
                     >
                       <Volume2 size={12} />

@@ -152,6 +152,28 @@ for _tag, _by_lang in KIRANA_TERMS.items():
     for _lang, _forms in _by_lang.items():
         _have = _entry.setdefault(_lang, [])
         _have.extend(f for f in _forms if f not in _have)
+# Spoken variants found by testing real sentences in every language: plurals,
+# common spelling variants and everyday words the training data missed.
+EXTRA_FORMS: dict[str, dict[str, list[str]]] = {
+    "onion": {"hi-IN": ["प्याज", "प्याज़", "कांदा"], "mr-IN": ["कांदे"], "pa-IN": ["ਪਿਆਜ"], "bn-IN": ["পিঁয়াজ"],
+              "ml-IN": ["സവാള"], "en-IN": ["pyaaz", "pyaz", "pyaj", "kanda", "ullipaya", "ullipayalu", "vengayam"]},
+    "eggs": {"hi-IN": ["अंडे", "अंडा", "अण्डे"], "mr-IN": ["अंडे", "अंडा"], "pa-IN": ["ਅੰਡੇ", "ਅੰਡਾ", "ਆਂਡਾ"],
+             "gu-IN": ["ઈંડાં", "ઇંડા"], "te-IN": ["గుడ్డు"], "en-IN": ["egg", "anda", "ande", "anda", "guddu", "gudlu", "muttai"]},
+    "bread": {"pa-IN": ["ਬ੍ਰੈੱਡ", "ਬ੍ਰੈਡ", "ਬਰੈਡ"], "bn-IN": ["ব্রেড"], "ta-IN": ["பிரெட்", "ரொட்டி"], "hi-IN": ["ब्रेड"]},
+    "tomato": {"mr-IN": ["टमाटे", "टोमॅटो"], "gu-IN": ["ટામેટા", "ટમેટા"], "bn-IN": ["টম্যাটো"], "hi-IN": ["टमाटर"],
+               "en-IN": ["tamatar", "tamatar", "takkali", "tamata"]},
+    "potato": {"te-IN": ["ఆలుగడ్డ", "బంగాళాదుంప"], "mr-IN": ["बटाटे"], "gu-IN": ["બટેટા", "બટાટા"],
+               "en-IN": ["aloo", "alu", "batata"]},
+    "sugar": {"hi-IN": ["चीनी", "शक्कर"], "ta-IN": ["சீனி"], "en-IN": ["cheeni", "chini", "shakkar"]},
+    "paneer": {"ml-IN": ["പനീറ്"], "ta-IN": ["பன்னீர்"]},
+    "milk": {"en-IN": ["doodh", "dudh", "paalu", "paal"]},
+}
+for _tag, _by_lang in EXTRA_FORMS.items():
+    _entry = TERMS.setdefault(_tag, {})
+    for _lang, _forms in _by_lang.items():
+        _have = _entry.setdefault(_lang, [])
+        _have.extend(f for f in _forms if f not in _have)
+
 # Rice in the vocabulary means everyday rice; basmati has its own entry.
 TERMS["rice"]["en-IN"] = [f for f in TERMS["rice"]["en-IN"] if f != "basmati"]
 

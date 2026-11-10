@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
+from app.agent import fast_path
 from app.agent import harness
 from app.audit.service import AuditService
 from app.core.config import settings
@@ -173,6 +174,7 @@ def act_on_transcript(
     gate, the same agent, the same rulebook and the same audit trail."""
     tts_model = tts_model or settings.gnani_tts_model
     stt_info = stt_info or {}
+    transcript = fast_path.fix_mishearings(transcript or "")
     # Prisma reports code-mixed speech (Tinglish, Hinglish…) as en-IN. When
     # the buyer chose an Indian language, keep replying in it.
     if detected_language == "en-IN" and language_hint and normalize(language_hint) != "en-IN":

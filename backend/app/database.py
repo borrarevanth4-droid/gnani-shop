@@ -57,7 +57,14 @@ _ADDED_COLUMNS: dict[str, dict[str, str]] = {
 def ensure_schema() -> None:
     """Add any missing columns listed in _ADDED_COLUMNS. Safe to call on every
     startup and on a brand-new database, where create_all() has already made
-    the columns and every check below is a no-op."""
+    the columns and every check below is a no-op.
+
+    Also creates any whole table added since the database was made (e.g.
+    cart_events) — create_all() only ever adds missing tables, never touches
+    existing ones or their data."""
+    import app.models  # noqa: F401  (register every model on Base.metadata)
+
+    Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
     existing_tables = set(inspector.get_table_names())
 

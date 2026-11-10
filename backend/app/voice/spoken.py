@@ -371,6 +371,18 @@ PHRASES: dict[str, dict[str, str]] = {
         "gu-IN": "{items} કાર્ટમાંથી દૂર કર્યું.",
         "pa-IN": "{items} ਕਾਰਟ ਵਿੱਚੋਂ ਹਟਾ ਦਿੱਤਾ।",
     },
+    "not_in_cart": {
+        "hi-IN": "{items} आपके कार्ट में नहीं है।",
+        "en-IN": "{items} is not in your cart.",
+        "ta-IN": "{items} உங்கள் கார்ட்டில் இல்லை.",
+        "te-IN": "{items} మీ కార్ట్‌లో లేదు.",
+        "kn-IN": "{items} ನಿಮ್ಮ ಕಾರ್ಟ್‌ನಲ್ಲಿ ಇಲ್ಲ.",
+        "ml-IN": "{items} നിങ്ങളുടെ കാർട്ടിൽ ഇല്ല.",
+        "mr-IN": "{items} तुमच्या कार्टमध्ये नाही.",
+        "bn-IN": "{items} আপনার কার্টে নেই।",
+        "gu-IN": "{items} તમારા કાર્ટમાં નથી.",
+        "pa-IN": "{items} ਤੁਹਾਡੇ ਕਾਰਟ ਵਿੱਚ ਨਹੀਂ ਹੈ।",
+    },
     "cart_has_say": {
         "hi-IN": "आपके कार्ट में {items} है।",
         "en-IN": "Your cart has {items}.",

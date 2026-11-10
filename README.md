@@ -54,11 +54,16 @@ say *"दो किलो आटा और एक लीटर दूध चा�
 
 ```bash
 python -m venv venv && venv/Scripts/pip install -r backend/requirements.txt   # Windows
-cd backend && ../venv/Scripts/python scripts/seed.py
-../venv/Scripts/python -m uvicorn app.main:app --port 8842
-# new terminal
-cd frontend && npm install && npm run dev
+cd backend && ../venv/Scripts/python scripts/seed.py && cd ..
+cd frontend && npm install && npm run app     # or double-click start.bat
 ```
+
+`npm run app` starts the API and the shop together; everything is served from
+**http://127.0.0.1:3000** (the shop forwards `/api/*` to the API on port 8842).
+Ctrl+C stops both.
+
+Check voice accuracy in all 10 languages with real Gnani audio:
+`venv/Scripts/python eval/voice_journey.py` (15 spoken conversations).
 
 ---
 

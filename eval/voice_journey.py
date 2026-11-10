@@ -87,6 +87,37 @@ JOURNEYS = [
         "ಎರಡು ಪಾರ್ಲೆ-ಜಿ ಬಿಸ್ಕತ್ ಮತ್ತು ಒಂದು ಹಾಲು ಸೇರಿಸಿ",
         "ಹಣ ಪಾವತಿಸಿ",
     ], {"BIS-001": 2, "DAI-001": 1}, True),
+    ("ml", "ml-IN", "Lakshmi", "Shivani", [
+        "രണ്ട് കിലോ ഉള്ളിയും ഒരു ലിറ്റർ പാലും വേണം",
+        "പാൽ വേണ്ട, അത് മാറ്റൂ",
+        "പണം അടയ്ക്കൂ",
+    ], {"KIR-008": 2}, True),
+    ("mr", "mr-IN", "Avinash", "Shivani", [
+        "मला दोन किलो साखर आणि एक पनीर हवं आहे",
+        "पनीर काढून टाका",
+        "माझ्या कार्टमध्ये काय आहे?",
+    ], {"KIR-004": 2}, False),
+    ("bn", "bn-IN", "Shivani", "Shivani", [
+        "আমাকে এক কেজি আলু আর ছয়টা ডিম দিন",
+        "আরও এক কেজি আলু দিন",
+        "এবার পেমেন্ট করে দিন",
+    ], {"KIR-010": 2, "KIR-011": 1}, True),
+    ("gu", "gu-IN", "Chetana", "Shivani", [
+        "મને એક કિલો ખાંડ અને એક લિટર દૂધ જોઈએ છે",
+        "દૂધ કાઢી નાખો",
+    ], {"KIR-004": 1}, False),
+    ("pa", "pa-IN", "Yashraj", "Shivani", [
+        "ਮੈਨੂੰ ਦੋ ਪੈਕੇਟ ਮੈਗੀ ਅਤੇ ਇੱਕ ਲੀਟਰ ਦੁੱਧ ਚਾਹੀਦਾ ਹੈ",
+        "ਮੈਗੀ ਹਟਾ ਦਿਓ",
+    ], {"DAI-001": 1}, False),
+    ("hinglish", "hi-IN", "Avinash", "Shivani", [
+        "ek packet Aashirvaad atta aur ek Tata salt daal do",
+        "salt hata do",
+    ], {"GRO-001": 1}, False),
+    ("ta2", "ta-IN", "Prakash", "Lakshmi", [
+        "இரண்டு கிலோ தக்காளி மற்றும் ஒரு பனீர் சேர்க்கவும்",
+        "பனீர் வேண்டாம்",
+    ], {"KIR-009": 2}, False),
     ("en", "en-IN", "Yashraj", "Shivani", [
         "add three Maggi packets and a Coca-Cola",
         "actually remove the Coca-Cola",

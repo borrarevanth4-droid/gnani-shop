@@ -6,7 +6,7 @@ import { createContext, useContext } from "react";
 // which never leave the backend (see backend/app/auth/oauth_router.py).
 const TOKEN_STORAGE_KEY = "gnani-shop-jwt";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8842";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ""; // "" = same origin; Next forwards /api/* to the backend
 
 export interface AuthUser {
   // Every Google login starts as a buyer; the dev role switch moves between

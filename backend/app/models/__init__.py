@@ -11,6 +11,7 @@ from app.models.agent_credential import AgentCredential
 from app.models.agent_session import AgentMessage, AgentSession
 from app.models.audit_event import AuditEvent
 from app.models.cart import Cart, CartItem
+from app.models.cart_event import CartEvent
 from app.models.demand_signal import DemandSignal
 from app.models.merchant_notification import MerchantNotification
 from app.models.order import Order, Payment
@@ -23,6 +24,7 @@ __all__ = [
     "Product",
     "Cart",
     "CartItem",
+    "CartEvent",
     "AgentSession",
     "AgentMessage",
     "AuditEvent",

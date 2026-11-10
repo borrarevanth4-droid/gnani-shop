@@ -564,3 +564,30 @@ export interface HeadlineNumbers {
   upsell_revenue_paise: number;
   campaign_net_margin_impact_paise: number;
 }
+
+export interface CartEvent {
+  id: number;
+  cart_id: number;
+  action: "added" | "removed";
+  sku: string;
+  name: string;
+  quantity: number;
+  unit_price_paise: number;
+  source: "you" | "assistant" | "reorder";
+  created_at: string;
+}
+
+export interface Basket {
+  order_id: number;
+  cart_id: number;
+  status: string;
+  amount_paise: number;
+  payment_method: string | null;
+  created_at: string;
+  items: { sku: string; name: string; quantity: number; unit_price_paise: number }[];
+}
+
+export interface CartHistory {
+  events: CartEvent[];
+  baskets: Basket[];
+}

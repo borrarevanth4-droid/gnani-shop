@@ -16,6 +16,7 @@ harness through the same policy engine and audit trail as a model proposal.
 """
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from app.i18n.grocery_terms import TERMS
@@ -67,13 +68,16 @@ enakku venum vendum pannunga podunga kodunga sethu
 আমার আমাকে চাই আর এবং দিন দাও যোগ করুন কার্টে দয়া
 મને જોઈએ અને પણ આપો ઉમેરો નાખો કરો કાર્ટમાં કૃપા
 ਮੈਨੂੰ ਚਾਹੀਦਾ ਚਾਹੀਦੇ ਅਤੇ ਤੇ ਵੀ ਪਾ ਦਿਓ ਦਿਉ ਜੋੜੋ ਕਾਰਟ ਕਿਰਪਾ
+है हैं हवं हवंय हवेत आहे आहेत છે છીએ ਹੈ ਹਨ ਜੀ जी తరూ തരൂ തരു തരണം ഉം ലേ
+ভাই দিদি একটু চাইছি লাগবে দরকার ಬೇಕಾಗಿದೆ ಕೊಡಿ வேண்டியது குடுங்க
 """
 _FILLER_STEMS = tuple(sorted({w.replace("_", " ").lower() for w in _FILLER.split()}, key=len, reverse=True))
 
 # Words that mean the sentence is NOT a simple "add these" — let the model handle it.
 _NOT_SIMPLE = re.compile(
     r"[?₹]|\b(remove|delete|pay|payment|checkout|under|below|budget|price|cheap|best|which|what|how|not|don'?t|no|"
-    r"instead|cancel|recommend|suggest|compare)\b|"
+    r"instead|cancel|recommend|suggest|compare|hata|hatao|hatado|nikal|nikaal|nahi|nahin|mat|venda|vendaam|vendam|"
+    r"venta|ventam|vendor|vaddu|beda|bedaa|nako|nakko|teeseyi|teesey|teeyandi|thiyyi|neekku|kadhi)\b|"
     r"हटा|निकाल|पेमेंट|भुगतान|रुपये|रुपए|कितने|कितना|क्या|नहीं|मत|सस्ता|"
     r"తీసే|తీసివే|తొలగ|చెల్లించ|రూపాయ|ఎంత|ఏమి|ఏముంది|వద్దు|లేదు|"
     r"நீக்க|பணம்|ரூபாய்|எவ்வளவு|என்ன|வேண்டாம்|"
@@ -90,6 +94,22 @@ _NOT_SIMPLE = re.compile(
 _DAAL_VERB = re.compile(r"\b(daal|dal)\s+(do|dijiye|diya|dena|de)\b", re.IGNORECASE)
 
 
+# Speech-recognition slips worth correcting before anyone acts on them.
+# Boosting the brand "Tata" makes the recogniser hear "hata do" (remove it) as
+# "Tata do" — but a sentence never ENDS with a brand plus "do / दो / dijiye", so
+# there it can only be the removal verb ("Tata दो packet chai" is left alone).
+_MISHEARD = [
+    (re.compile(r"(?<![\w\u0900-\u097F])(tata|टाटा)\s+(do|दो|dijiye|दीजिए|दीजिये|de|दे)(?=\s*[,.!?।]*\s*$)",
+                re.IGNORECASE), r"hata \2"),
+]
+
+
+def fix_mishearings(text: str) -> str:
+    for pattern, repl in _MISHEARD:
+        text = pattern.sub(repl, text)
+    return text
+
+
 @dataclass
 class PlannedItem:
     tag: str | None
@@ -99,16 +119,38 @@ class PlannedItem:
     sku: str | None = None  # set when a brand alone named the product ("a Coca-Cola")
 
 
+# A "word character" for Indian scripts: Python's \w skips vowel signs, viramas
+# and nukta (Unicode marks), which split "टमाटाలు"-style inflected words in two.
+_WCH = r"[\w\u0900-\u0DFF\u200c\u200d]"
+_VIRAMAS = "्্੍્୍்్್്"
+# Malayalam chillu letters are rewritten as consonant + virama when a suffix
+# follows (പാൽ "milk" → പാലും "and milk"), so compare in the base form.
+_CHILLU = str.maketrans({"ൺ": "ണ്", "ൻ": "ന്", "ർ": "ര്",
+                         "ൽ": "ല്", "ൾ": "ള്", "ൿ": "ക്"})
+
+
+def normalize(text: str) -> str:
+    return unicodedata.normalize("NFC", text).translate(_CHILLU).replace("‌", "").replace("‍", "").lower()
+
+
 def _forms() -> list[tuple[str, str]]:
     out = []
     for tag, by_lang in TERMS.items():
         for forms in by_lang.values():
             for f in forms:
-                out.append((f.lower(), tag))
+                f = normalize(f)
+                out.append((f, tag))
+                # "പാല്" also matches "പാലും": an ending virama disappears before a suffix
+                if f[-1:] in _VIRAMAS and len(f) >= 4:
+                    out.append((f[:-1], tag))
     return sorted(set(out), key=lambda x: len(x[0]), reverse=True)
 
 
 _FORMS = _forms()
+# Compare everything in the same normalised form as the text.
+_MASS, _VOLUME, _GRAM, _COUNT = (tuple(normalize(w) for w in ws) for ws in (_MASS, _VOLUME, _GRAM, _COUNT))
+_FILLER_STEMS = tuple(sorted({normalize(w) for w in _FILLER_STEMS}, key=len, reverse=True))
+_NUMBERS = {normalize(k): v for k, v in _NUMBERS.items()}
 
 
 def _unit_kind(token: str) -> str | None:
@@ -119,12 +161,24 @@ def _unit_kind(token: str) -> str | None:
     return None
 
 
+_COUNTERS = ("টা", "টি", "টো", "টে", "খানা", "ta", "ti")
+_BN_NUMBERS = {"দুটো": 2, "দুটি": 2, "তিনটে": 3, "চারটে": 4}
+
+
 def _number(token: str) -> int | None:
     t = token.lower()
-    if t.isdigit():
-        n = int(t)
+    m = re.fullmatch(r"(\d+)(?:টা|টি|টো|টে)?", t)
+    if m:
+        n = int(m.group(1))
         return n if 1 <= n <= 50 else None
-    return _NUMBERS.get(t)
+    if t in _BN_NUMBERS:
+        return _BN_NUMBERS[t]
+    if t in _NUMBERS:
+        return _NUMBERS[t]
+    for c in _COUNTERS:  # Bengali classifiers: একটা = এক + টা ("one piece")
+        if t.endswith(c) and len(t) > len(c) and t[: -len(c)] in _NUMBERS:
+            return _NUMBERS[t[: -len(c)]]
+    return None
 
 
 def parse(message: str, brand_words: set[str], brand_only: dict[str, str] | None = None) -> list[PlannedItem] | None:
@@ -133,16 +187,25 @@ def parse(message: str, brand_words: set[str], brand_only: dict[str, str] | None
     if not text or len(text) > 200 or _NOT_SIMPLE.search(text):
         return None
     text = _DAAL_VERB.sub(r"\2", text)
-    low = " " + re.sub(r"[,.!।|;:]+", " ", text.lower()) + " "
+    low = " " + re.sub(r"[,.!।|;:]+", " ", normalize(text)) + " "
 
     # replace product mentions (longest first) with placeholders
     found: list[str] = []
     for form, tag in _FORMS:
-        pattern = re.compile(r"(?<![\w-])" + re.escape(form) + r"\w*")
+        pattern = re.compile(r"(?<!" + _WCH + r")(?<!-)" + re.escape(form) + _WCH + "*")
+        pos = 0
         while True:
-            m = pattern.search(low)
+            m = pattern.search(low, pos)
             if not m:
                 break
+            word = m.group(0)
+            # "চাই" (want) starts with "চা" (tea), "ਚਾਹੀਦਾ" (needed) with "ਚਾਹ" (tea):
+            # a word that is really a filler word is not a product.
+            if len(word) > len(form) and any(
+                len(f) > len(form) and (word == f or (len(f) >= 3 and word.startswith(f))) for f in _FILLER_STEMS
+            ):
+                pos = m.end()
+                continue
             found.append(tag)
             low = low[: m.start()] + f" §{len(found) - 1}§ " + low[m.end():]
     if not found:

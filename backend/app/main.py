@@ -12,6 +12,7 @@ from app.routers import (
     audit,
     campaigns,
     cart,
+    cart_history,
     catalog,
     checkout,
     dashboard,
@@ -58,6 +59,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(products.router)
 app.include_router(cart.router)
+app.include_router(cart_history.router)
 app.include_router(agent.router)
 app.include_router(audit.router)
 app.include_router(payments.router)

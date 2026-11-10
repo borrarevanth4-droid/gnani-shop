@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.cart import Cart, CartItem
+from app.models.cart_event import CartEvent
 from app.repositories import cart_repo, product_repo
 from app.schemas.cart import CartItemCreate, CartItemOut, CartOut
 from app.services.pricing import effective_price_paise
@@ -35,7 +36,12 @@ def get_cart(db: Session, user_id: str) -> CartOut:
     return _to_cart_out(cart)
 
 
-def add_item(db: Session, user_id: str, payload: CartItemCreate) -> CartOut:
+def _log(db: Session, user_id: str, cart_id: int, action: str, product, quantity: int, price: int, source: str) -> None:
+    db.add(CartEvent(user_id=user_id, cart_id=cart_id, action=action, sku=product.sku, name=product.name,
+                     quantity=quantity, unit_price_paise=price, source=source))
+
+
+def add_item(db: Session, user_id: str, payload: CartItemCreate, source: str = "you") -> CartOut:
     product = product_repo.get_by_sku(db, payload.sku)
     if product is None:
         raise HTTPException(status_code=404, detail=f"Product '{payload.sku}' not found")
@@ -45,6 +51,7 @@ def add_item(db: Session, user_id: str, payload: CartItemCreate) -> CartOut:
     existing = cart_repo.get_item_by_product(db, cart.id, product.id)
     if existing is not None:
         existing.quantity += payload.quantity
+        _log(db, user_id, cart.id, "added", product, payload.quantity, existing.unit_price_paise, source)
     else:
         cart_repo.add_item(
             db,
@@ -58,17 +65,19 @@ def add_item(db: Session, user_id: str, payload: CartItemCreate) -> CartOut:
                 user_id=user_id,
             ),
         )
+        _log(db, user_id, cart.id, "added", product, payload.quantity, effective_price_paise(product), source)
 
     db.commit()
     cart = cart_repo.get_active_cart(db, user_id)
     return _to_cart_out(cart)
 
 
-def delete_item(db: Session, user_id: str, item_id: int) -> CartOut:
+def delete_item(db: Session, user_id: str, item_id: int, source: str = "you") -> CartOut:
     item = cart_repo.get_item(db, item_id)
     if item is None or item.user_id != user_id:
         raise HTTPException(status_code=404, detail=f"Cart item {item_id} not found")
 
+    _log(db, user_id, item.cart_id, "removed", item.product, item.quantity, item.unit_price_paise, source)
     cart_repo.delete_item(db, item)
     db.commit()
 

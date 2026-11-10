@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
   // so the Docker runtime image doesn't carry the full node_modules tree.
   // Build-output only — `next dev` is unaffected.
   output: "standalone",
+  // Don't let `next dev` write AGENTS.md / CLAUDE.md into the repo.
+  agentRules: false,
+  // One address for everything: the browser only talks to this server, which
+  // forwards every /api/* call to the FastAPI backend.
+  async rewrites() {
+    return [{ source: "/api/:path*", destination: `${process.env.BACKEND_URL ?? "http://127.0.0.1:8842"}/api/:path*` }];
+  },
 };
 
 export default nextConfig;

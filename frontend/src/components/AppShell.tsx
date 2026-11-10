@@ -21,6 +21,7 @@ const BUYER_NAV: NavItem[] = [
   { key: "shop", label: "Shop", href: "/", match: (p) => p === "/" },
   { key: "dashboard", label: "Dashboard", href: "/dashboard" },
   { key: "orders", label: "Orders", href: "/orders" },
+  { key: null, label: "Cart history", href: "/cart-history" },
   { key: "wallet", label: "Wallet", href: "/wallet" },
   { key: "agent", label: "My Agent", href: "/agents" },
   { key: "voiceLab", label: "Voice Lab", href: "/voice-lab" },
