@@ -55,7 +55,7 @@ def search_products(
         min_price_paise=None,
         max_price_paise=max_price_paise,
         page=1,
-        page_size=20,
+        page_size=6,
     )
     relaxed: str | None = None
     buyer_said = _buyer_terms(db, session_id)
@@ -80,7 +80,7 @@ def search_products(
         # The model guessed a category; a wrong guess ("milk" under
         # groceries) must not hide a product we actually stock.
         result = product_service.list_products(db, category=None, search=query or None, min_price_paise=None,
-                                               max_price_paise=max_price_paise, page=1, page_size=20)
+                                               max_price_paise=max_price_paise, page=1, page_size=6)
         relaxed = f"No match in category '{category}', so all categories were searched."
     for p in result.items:
         _flag_if_injection(db, user_id, session_id, "search_products", p.sku, p.description)
@@ -102,10 +102,13 @@ def search_products(
                 "price_display": p.effective_price_display,
                 "original_price_paise": p.price_paise if p.discount_pct else None,
                 "discount_pct": p.discount_pct,
+                "unit": p.unit,
                 "stock": p.stock,
-                "description": p.description,
+                # Short on purpose: every search result is resent to the model
+                # on each step. Full text is one get_product call away.
+                "description": (p.description or "")[:80],
             }
-            for p in result.items
+            for p in result.items[:6]
         ],
     }
 

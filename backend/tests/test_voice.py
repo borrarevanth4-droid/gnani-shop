@@ -31,7 +31,7 @@ from app.models.agent_credential import AgentCredential
 from app.models.agent_session import AgentSession
 from app.models.order import Order
 from app.models.user import User
-from app.repositories import product_repo
+from app.repositories import agent_session_repo, product_repo
 from app.voice import keyterms as keyterms_module
 from app.voice import languages as langs
 from app.voice import spoken
@@ -488,3 +488,92 @@ def test_remove_in_any_language_takes_the_fast_path_without_the_model(db_session
         result = harness.handle_chat(db_session, "rm-s", "u-rm", message, None, "r", language="te-IN", channel="voice")
     assert [i["sku"] for i in result.cart["items"]] == [sku_left]
     assert any(s["type"] == "policy_decision" and s["tool"] == "remove_from_cart" for s in result.steps)
+
+
+@pytest.mark.parametrize("message,expect", [
+    ("నాకు ఒక లీటర్ పాలు మరియు రెండు ప్యాకెట్ల ఉప్పు కావాలి", {"DAI-001": 1, "GRO-004": 2}),
+    ("मुझे 2 पैकेट Maggi और 1 पनीर चाहिए", {"GRO-008": 2, "DAI-005": 1}),
+    ("ਦੋ ਲੀਟਰ ਦੁੱਧ ਪਾ ਦਿਓ", {"DAI-001": 2}),
+    ("add 2 kg atta", {"GRO-001": 1}),
+])
+def test_simple_orders_take_the_instant_path_without_the_model(db_session, message, expect):
+    """Fully-understood simple orders are added by code through the policy
+    engine — the model is never called."""
+    import json as _json
+    from pathlib import Path
+
+    from app.agent import harness
+
+    catalog = _json.loads((Path(__file__).resolve().parents[1] / "data" / "products.json").read_text(encoding="utf-8"))
+    for e in catalog["products"]:
+        product_repo.upsert(db_session, {k: e[k] for k in ("sku", "name", "brand", "category", "price_paise", "unit",
+                                                            "stock", "description", "tags", "cost_paise")})
+    db_session.commit()
+    with patch("app.agent.harness.gateway.call", side_effect=AssertionError("model must not be called")):
+        result = harness.handle_chat(db_session, "fast-s", "u-fast", message, 500_000, "r", language="te-IN",
+                                     channel="voice")
+    assert {i["sku"]: i["quantity"] for i in result.cart["items"]} == expect
+    assert any(s["type"] == "policy_decision" and s["decision"] == "ALLOW" for s in result.steps)
+
+
+@pytest.mark.parametrize("message", ["నాకు మామిడి పండ్లు కావాలి", "milk and mangoes", "I want some chocolate",
+                                     "500 रुपये के अंदर चावल", "पनीर नहीं चाहिए"])
+def test_anything_not_fully_understood_goes_to_the_model(message):
+    from app.agent.fast_path import parse
+
+    plan = parse(message, {"amul", "tata", "maggi"})
+    assert plan is None or any(i.tag == "chocolate" for i in plan)  # chocolate: parsed but ambiguous → model
+
+
+def test_junk_in_history_never_reaches_gnani_as_context(db_session):
+    """A model's junk reply ("<|reserved_special_token|>") stored in the
+    history used to make Gnani reject every later voice turn."""
+    from app.voice.service import _previous_text
+
+    agent_session_repo.get_or_create_session(db_session, "junk-s", "u", None)
+    agent_session_repo.append_message(db_session, "junk-s", "assistant", content="Any ko::<|reserved_special_token|>? **Add**")
+    db_session.commit()
+    text = _previous_text(db_session, "junk-s")
+    assert "<|" not in text and "|>" not in text and "*" not in text
+
+
+def test_gnani_context_rejection_retries_without_context(client, session_factory):
+    _seed(session_factory)
+    calls = []
+
+    def fake(audio, **kw):
+        calls.append(kw)
+        if kw.get("previous_text") is not None or kw.get("keyterms"):
+            raise VoiceGatewayError("bad context", code="INVALID_CONTEXT")
+        return _stt("hello there", "en-IN")
+
+    it = iter([_final("Hello!")])
+    with patch("app.voice.service.voice_gateway.transcribe", side_effect=fake), \
+         patch("app.agent.harness.gateway.call", side_effect=lambda *a, **k: next(it)):
+        res = client.post("/api/voice/turn", headers=_auth(), data={"session_id": "ctx-s"},
+                          files={"audio": ("a.wav", WAV, "audio/wav")})
+    assert res.json()["fell_back_to_text"] is False and len(calls) == 2
+
+
+def test_junk_model_reply_is_replaced_and_scrubbed_from_history(db_session):
+    from app.agent import harness
+
+    with patch("app.agent.harness.gateway.call",
+               side_effect=lambda *a, **k: _final("Second things in Telugu:Getache? <|reserved_special_token|> **x**")):
+        r = harness.handle_chat(db_session, "junk2", "u", "what is the weather", None, "r", language="te-IN", channel="voice")
+    assert "<|" not in r.reply and "క్షమించండి" in r.reply
+    stored = [m.content for m in agent_session_repo.list_messages(db_session, "junk2") if m.role == "assistant"]
+    assert all("<|" not in (c or "") for c in stored)
+
+
+@pytest.mark.parametrize("message,target", [
+    ("హిందీలో మాట్లాడు", "hi-IN"), ("speak tamizh", "ta-IN"), ("Hindi mein baat karo", "hi-IN"),
+    ("தெலுங்கில் பேசு", "te-IN"), ("ಇಂಗ್ಲಿಷ್‌ನಲ್ಲಿ ಮಾತನಾಡಿ", "en-IN"),
+])
+def test_switch_language_by_voice(db_session, message, target):
+    from app.agent import harness
+
+    with patch("app.agent.harness.gateway.call", side_effect=AssertionError("model must not be called")):
+        r = harness.handle_chat(db_session, f"ls-{target}", "u", message, None, "r", language="te-IN", channel="voice")
+    assert r.language == target
+    assert agent_session_repo.get_session(db_session, f"ls-{target}").language == target

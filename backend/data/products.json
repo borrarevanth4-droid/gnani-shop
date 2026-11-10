@@ -8,7 +8,10 @@
     "cool_drinks",
     "biscuits",
     "electronics",
-    "pet_supplies"
+    "pet_supplies",
+    "vegetables",
+    "spices",
+    "household"
   ],
   "products": [
     {
@@ -38,8 +41,8 @@
       "stock": 25,
       "description": "Aged long-grain basmati rice for biryani and pulao.",
       "tags": [
-        "rice",
         "basmati",
+        "basmati rice",
         "staple"
       ],
       "cost_paise": 36020
@@ -851,6 +854,230 @@
         "accessory"
       ],
       "cost_paise": 34263
+    },
+    {
+      "sku": "KIR-001",
+      "name": "Kirana Select Sona Masoori Rice 5kg",
+      "brand": "Kirana Select",
+      "category": "groceries",
+      "price_paise": 42000,
+      "cost_paise": 31500,
+      "unit": "5 kg pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: sona masoori rice.",
+      "tags": [
+        "rice",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-002",
+      "name": "Kirana Select Moong Dal 500g",
+      "brand": "Kirana Select",
+      "category": "groceries",
+      "price_paise": 7200,
+      "cost_paise": 5400,
+      "unit": "500 g pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: moong dal.",
+      "tags": [
+        "moong dal",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-003",
+      "name": "Kirana Select Groundnut Oil 1L",
+      "brand": "Kirana Select",
+      "category": "groceries",
+      "price_paise": 19000,
+      "cost_paise": 14250,
+      "unit": "1 L bottle",
+      "stock": 60,
+      "description": "Everyday kirana staple: groundnut oil.",
+      "tags": [
+        "groundnut oil",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-004",
+      "name": "Kirana Select Sugar 1kg",
+      "brand": "Kirana Select",
+      "category": "groceries",
+      "price_paise": 4800,
+      "cost_paise": 3600,
+      "unit": "1 kg pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: sugar.",
+      "tags": [
+        "sugar",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-005",
+      "name": "Kirana Select Turmeric Powder 100g",
+      "brand": "Kirana Select",
+      "category": "spices",
+      "price_paise": 3500,
+      "cost_paise": 2625,
+      "unit": "100 g pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: turmeric powder.",
+      "tags": [
+        "turmeric",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-006",
+      "name": "Kirana Select Red Chilli Powder 200g",
+      "brand": "Kirana Select",
+      "category": "spices",
+      "price_paise": 7000,
+      "cost_paise": 5250,
+      "unit": "200 g pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: red chilli powder.",
+      "tags": [
+        "chilli powder",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-007",
+      "name": "Kirana Select Tamarind 250g",
+      "brand": "Kirana Select",
+      "category": "spices",
+      "price_paise": 6000,
+      "cost_paise": 4500,
+      "unit": "250 g pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: tamarind.",
+      "tags": [
+        "tamarind",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-008",
+      "name": "Onion 1kg",
+      "brand": "Farm Fresh",
+      "category": "vegetables",
+      "price_paise": 4000,
+      "cost_paise": 3000,
+      "unit": "1 kg pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: onion.",
+      "tags": [
+        "onion",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-009",
+      "name": "Tomato 1kg",
+      "brand": "Farm Fresh",
+      "category": "vegetables",
+      "price_paise": 3000,
+      "cost_paise": 2250,
+      "unit": "1 kg pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: tomato.",
+      "tags": [
+        "tomato",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-010",
+      "name": "Potato 1kg",
+      "brand": "Farm Fresh",
+      "category": "vegetables",
+      "price_paise": 3500,
+      "cost_paise": 2625,
+      "unit": "1 kg pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: potato.",
+      "tags": [
+        "potato",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-011",
+      "name": "Eggs 6pcs",
+      "brand": "Farm Fresh",
+      "category": "dairy",
+      "price_paise": 4800,
+      "cost_paise": 3600,
+      "unit": "6 pcs",
+      "stock": 60,
+      "description": "Everyday kirana staple: eggs.",
+      "tags": [
+        "eggs",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-012",
+      "name": "Modern Bread 400g",
+      "brand": "Modern",
+      "category": "groceries",
+      "price_paise": 4000,
+      "cost_paise": 3000,
+      "unit": "400 g",
+      "stock": 60,
+      "description": "Everyday kirana staple: bread.",
+      "tags": [
+        "bread",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-013",
+      "name": "Kirana Select Bath Soap 1bar",
+      "brand": "Kirana Select",
+      "category": "household",
+      "price_paise": 3800,
+      "cost_paise": 2850,
+      "unit": "1 bar",
+      "stock": 60,
+      "description": "Everyday kirana staple: bath soap.",
+      "tags": [
+        "soap",
+        "kirana",
+        "staple"
+      ]
+    },
+    {
+      "sku": "KIR-014",
+      "name": "Kirana Select Detergent Powder 1kg",
+      "brand": "Kirana Select",
+      "category": "household",
+      "price_paise": 12000,
+      "cost_paise": 9000,
+      "unit": "1 kg pack",
+      "stock": 60,
+      "description": "Everyday kirana staple: detergent powder.",
+      "tags": [
+        "detergent",
+        "kirana",
+        "staple"
+      ]
     },
     {
       "sku": "INJ-001",

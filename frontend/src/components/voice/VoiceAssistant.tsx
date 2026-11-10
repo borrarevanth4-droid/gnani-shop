@@ -195,18 +195,17 @@ export default function VoiceAssistant({ onCart, onPaid: onPaidOuter }: { onCart
       player.current?.stop();
       const p = new PcmPlayer();
       player.current = p;
-      const done = new Promise<void>((resolve) => {
-        p.onEnded = () => resolve();
-      });
       try {
         const v = ttsModel === "timbre-v2.5" && !voicesForModel.some((x) => x.name === voice) ? undefined : voice;
-        let got = false;
-        await synthesizeStream({ text: spokenText, voice: v, model: ttsModel, language, sessionId }, (pcm, rate) => {
-          got = true;
-          p.enqueue(pcm, rate);
-        });
-        if (got) await Promise.race([done, new Promise((r) => setTimeout(r, 30_000))]);
+        await synthesizeStream({ text: spokenText, voice: v, model: ttsModel, language, sessionId }, (pcm, rate) =>
+          p.enqueue(pcm, rate)
+        );
+        p.markComplete();
+        // Wait until every word has actually been played — never just the
+        // first gap between chunks. Safety cap: 90 s.
+        await Promise.race([p.finished(), new Promise((r) => setTimeout(r, 90_000))]);
       } catch (e) {
+        p.markComplete();
         setError(`Speech unavailable: ${e instanceof Error ? e.message : String(e)}`);
       }
     },

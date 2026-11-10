@@ -16,6 +16,7 @@ confirming is a tap (POST /api/agent/confirm), paying is a tap
 (POST /api/payments/pay).
 """
 
+import re
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
@@ -89,7 +90,10 @@ def _previous_text(db: Session, session_id: str) -> str | None:
     is what makes a follow-up like "add one more" transcribe correctly."""
     for m in reversed(agent_session_repo.list_messages(db, session_id)):
         if m.role == "assistant" and m.content:
-            return m.content[-600:]
+            # Gnani rejects context containing its tag markers ("<|", "|>");
+            # a model's junk reply could otherwise break every later turn.
+            clean = re.sub(r"<\|[^>]*\|>|<\||\|>|[*`#]", " ", m.content)
+            return re.sub(r"\s+", " ", clean).strip()[-600:] or None
     return None
 
 
@@ -116,7 +120,14 @@ def run_voice_turn(
             previous_text=_previous_text(db, session_id),
         )
     except VoiceGatewayError as e:
-        return fallback(db, session_id, user_id, request_id, language_hint, str(e))
+        if e.code != "INVALID_CONTEXT":
+            return fallback(db, session_id, user_id, request_id, language_hint, str(e))
+        # The extra context was refused — the speech itself is fine. Try once
+        # more with just the audio and language rather than giving up on voice.
+        try:
+            stt = voice_gateway.transcribe(audio, language=stt_language_code(language_hint))
+        except VoiceGatewayError as e2:
+            return fallback(db, session_id, user_id, request_id, language_hint, str(e2))
 
     return act_on_transcript(
         db,
@@ -162,6 +173,10 @@ def act_on_transcript(
     gate, the same agent, the same rulebook and the same audit trail."""
     tts_model = tts_model or settings.gnani_tts_model
     stt_info = stt_info or {}
+    # Prisma reports code-mixed speech (Tinglish, Hinglish…) as en-IN. When
+    # the buyer chose an Indian language, keep replying in it.
+    if detected_language == "en-IN" and language_hint and normalize(language_hint) != "en-IN":
+        detected_language = normalize(language_hint)
     language = normalize(detected_language or language_hint)
     _audit.log_event(
         db,
@@ -221,6 +236,7 @@ def act_on_transcript(
 
     # Make the reply good to listen to — tags only from our templates --------
     clean, removed = spoken.strip_model_tags(result.reply)
+    to_speak, _ = spoken.strip_model_tags(result.spoken_reply or result.reply)
     if removed:
         _audit.log_event(
             db, session_id=session_id, user_id=user_id, event_type="audio_tags_stripped", actor="policy",
@@ -228,7 +244,9 @@ def act_on_transcript(
             reason="Audio tags written by the language model were removed; only fixed templates may add them.",
             request_id=request_id,
         )
-    spoken_text = spoken.compose(spoken.speakable(clean), moment=_moment(result), model=tts_model)
+    if result.language:  # "speak Tamil" — reply (and continue) in the new language
+        language = result.language
+    spoken_text = spoken.compose(spoken.speakable(to_speak), moment=_moment(result), model=tts_model)
 
     return VoiceTurnResult(
         transcript=transcript,

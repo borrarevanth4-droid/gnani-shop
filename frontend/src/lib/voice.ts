@@ -131,19 +131,38 @@ export class MicRecorder {
 }
 
 export class PcmPlayer {
+  // Plays Timbre's streamed PCM gaplessly. "Finished" means BOTH that the
+  // stream has fully arrived (markComplete) AND every queued buffer has played
+  // — a short network gap between chunks must never look like the end of the
+  // reply (that bug cut replies off mid-sentence when hands-free mode started
+  // listening again too early).
   private ctx: AudioContext | null = null;
   private nextTime = 0;
   private sources: AudioBufferSourceNode[] = [];
   private leftover: Uint8Array | null = null;
+  private complete = false;
+  private stopped = false;
+  private waiters: (() => void)[] = [];
   onEnded: (() => void) | null = null;
 
   private ensure(): AudioContext {
     if (!this.ctx) this.ctx = new AudioContext();
+    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
     return this.ctx;
+  }
+
+  private maybeFinish(): void {
+    if ((this.complete && this.sources.length === 0) || this.stopped) {
+      const w = this.waiters;
+      this.waiters = [];
+      w.forEach((fn) => fn());
+      this.onEnded?.();
+    }
   }
 
   /** Queue one chunk of 16-bit little-endian mono PCM. */
   enqueue(bytes: Uint8Array, sampleRate: number): void {
+    if (this.stopped) return;
     const ctx = this.ensure();
     let data = bytes;
     if (this.leftover) {
@@ -157,7 +176,8 @@ export class PcmPlayer {
       this.leftover = data.slice(data.length - 1);
       data = data.slice(0, data.length - 1);
     }
-    const samples = new Int16Array(data.buffer, data.byteOffset, data.length / 2);
+    const copy = new Uint8Array(data); // aligned copy for Int16Array
+    const samples = new Int16Array(copy.buffer, 0, copy.length / 2);
     if (!samples.length) return;
     const buf = ctx.createBuffer(1, samples.length, sampleRate);
     const ch = buf.getChannelData(0);
@@ -165,26 +185,41 @@ export class PcmPlayer {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
-    const at = Math.max(ctx.currentTime + 0.03, this.nextTime);
+    // A small lead on the first chunk absorbs network jitter between chunks.
+    const at = Math.max(ctx.currentTime + (this.sources.length === 0 && this.nextTime === 0 ? 0.15 : 0.02), this.nextTime);
     src.start(at);
     this.nextTime = at + buf.duration;
     this.sources.push(src);
     src.onended = () => {
-      this.sources = this.sources.filter((s) => s !== src);
-      if (this.sources.length === 0) this.onEnded?.();
+      this.sources = this.sources.filter((x) => x !== src);
+      this.maybeFinish();
     };
   }
 
+  /** The stream has delivered its last chunk. */
+  markComplete(): void {
+    this.complete = true;
+    this.maybeFinish();
+  }
+
+  /** Resolves when everything has been heard (or playback was stopped). */
+  finished(): Promise<void> {
+    if ((this.complete && this.sources.length === 0) || this.stopped) return Promise.resolve();
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+
   stop(): void {
-    for (const s of this.sources) {
+    this.stopped = true;
+    for (const x of this.sources) {
       try {
-        s.stop();
+        x.stop();
       } catch {
         // already stopped
       }
     }
     this.sources = [];
     this.nextTime = 0;
+    this.maybeFinish();
   }
 }
 

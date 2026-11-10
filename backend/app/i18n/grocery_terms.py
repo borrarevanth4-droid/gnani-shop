@@ -35,7 +35,7 @@ TERMS: dict[str, dict[str, list[str]]] = {
         "en-IN": ["salt", "namak", "uppu"],
     },
     "dal": {
-        "hi-IN": ["दाल"], "mr-IN": ["डाळ"], "ta-IN": ["பருப்பு"], "te-IN": ["పప్పు"], "kn-IN": ["ಬೇಳೆ"],
+        "hi-IN": ["तूर दाल", "अरहर दाल", "दाल"], "mr-IN": ["तूर डाळ", "डाळ"], "ta-IN": ["பருப்பு"], "te-IN": ["పప్పు"], "kn-IN": ["ಬೇಳೆ"],
         "ml-IN": ["പരിപ്പ്"], "bn-IN": ["ডাল"], "gu-IN": ["દાળ"], "pa-IN": ["ਦਾਲ"],
         "en-IN": ["dal", "daal", "pappu", "paruppu", "lentils", "toor dal"],
     },
@@ -50,8 +50,9 @@ TERMS: dict[str, dict[str, list[str]]] = {
         "en-IN": ["coffee", "kaapi", "kapi"],
     },
     "noodles": {
-        "hi-IN": ["नूडल्स", "मैगी"], "mr-IN": ["नूडल्स"], "ta-IN": ["நூடுல்ஸ்"], "te-IN": ["నూడుల్స్"],
-        "kn-IN": ["ನೂಡಲ್ಸ್"], "ml-IN": ["നൂഡിൽസ്"], "bn-IN": ["নুডলস"], "gu-IN": ["નૂડલ્સ"], "pa-IN": ["ਨੂਡਲਜ਼"],
+        "hi-IN": ["मैगी", "नूडल्स"], "mr-IN": ["मॅगी", "नूडल्स"], "ta-IN": ["மேகி", "நூடுல்ஸ்"],
+        "te-IN": ["మ్యాగీ", "నూడుల్స్"], "kn-IN": ["ಮ್ಯಾಗಿ", "ನೂಡಲ್ಸ್"], "ml-IN": ["മാഗി", "നൂഡിൽസ്"],
+        "bn-IN": ["ম্যাগি", "নুডলস"], "gu-IN": ["મેગી", "નૂડલ્સ"], "pa-IN": ["ਮੈਗੀ", "ਨੂਡਲਜ਼"],
         "en-IN": ["noodles", "maggi"],
     },
     "ice cream": {
@@ -140,6 +141,19 @@ TERMS: dict[str, dict[str, list[str]]] = {
         "pa-IN": ["ਪਾਵਰ ਬੈਂਕ"], "en-IN": ["power bank", "powerbank"],
     },
 }
+
+
+# Merge the kirana vocabulary (generated from the Shabda Kirana training data):
+# new products get their own entries, existing ones gain extra everyday names.
+from app.i18n.kirana_terms import KIRANA_TERMS  # noqa: E402
+
+for _tag, _by_lang in KIRANA_TERMS.items():
+    _entry = TERMS.setdefault(_tag, {})
+    for _lang, _forms in _by_lang.items():
+        _have = _entry.setdefault(_lang, [])
+        _have.extend(f for f in _forms if f not in _have)
+# Rice in the vocabulary means everyday rice; basmati has its own entry.
+TERMS["rice"]["en-IN"] = [f for f in TERMS["rice"]["en-IN"] if f != "basmati"]
 
 
 def expand_query(query: str) -> list[str]:

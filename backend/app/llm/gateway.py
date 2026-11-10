@@ -156,18 +156,27 @@ def _to_agno_messages(messages: list[dict]) -> list[Message]:
     ]
 
 
-def _retry_after_seconds(error: Exception) -> float:
+_COOLDOWN_UNTIL: dict[str, float] = {}
+
+
+def _cooling(model_id: str) -> bool:
+    until = _COOLDOWN_UNTIL.get(model_id)
+    return until is not None and time.monotonic() < until
+
+
+def _retry_after_seconds(error: Exception, cap: float | None = 12.0) -> float:
     """Providers on a tokens-per-minute plan (e.g. Groq's free tier) say how
     long to wait: "Please try again in 2.61s". Waiting that long — capped,
     so a turn never hangs — turns most rate-limit errors into a success on
     the next attempt instead of a burned retry."""
     import re
 
-    m = re.search(r"try again in ([0-9.]+)\s*(ms|s)", str(error))
+    text = str(error)
+    m = re.search(r"try again in (?:(\d+)m)?([0-9.]+)\s*(ms|s)", text)
     if not m:
         return 0.0
-    value = float(m.group(1)) / (1000 if m.group(2) == "ms" else 1)
-    return min(value + 0.25, 12.0)
+    value = float(m.group(2)) / (1000 if m.group(3) == "ms" else 1) + 60 * int(m.group(1) or 0)
+    return value + 0.25 if cap is None else min(value + 0.25, cap)
 
 
 def _is_retryable(error: ModelProviderError) -> bool:
@@ -243,7 +252,7 @@ class LLMGateway:
     def call(self, messages: list[dict], tools: list[dict]) -> GatewayResult:
         agno_messages = _to_agno_messages(messages)
 
-        if not self._primary_breaker.is_open():
+        if not self._primary_breaker.is_open() and not _cooling(self._primary.id):
             try:
                 result = self._call_with_retries(self._primary, agno_messages, tools, fallback_used=False)
                 self._primary_breaker.record_success()
@@ -260,7 +269,7 @@ class LLMGateway:
                 extra={"primary_model": self._primary_id, "consecutive_failures": self._primary_breaker.consecutive_failures},
             )
 
-        if self._fallback_breaker.is_open():
+        if self._fallback_breaker.is_open() or _cooling(self._fallback.id):
             logger.error(
                 "fallback model circuit breaker also open",
                 extra={"fallback_model": self._fallback_id, "consecutive_failures": self._fallback_breaker.consecutive_failures},
@@ -360,6 +369,10 @@ class LLMGateway:
                 if not retryable or attempt >= max_attempts:
                     raise GatewayError(str(e)) from e
                 wait = max(self._backoff_base * (2 ** (attempt - 1)), _retry_after_seconds(e))
+                if e.status_code == 429 and _retry_after_seconds(e, cap=None) > 60:
+                    # A daily/long quota: skip this model entirely until it
+                    # refills, instead of paying a failed call on every turn.
+                    _COOLDOWN_UNTIL[model.id] = time.monotonic() + _retry_after_seconds(e, cap=None)
                 if e.status_code == 429 and wait > 3.0 and hand_off:
                     # Rate-limited for a while: hand the turn to the fallback
                     # (possibly another provider) now rather than make the
